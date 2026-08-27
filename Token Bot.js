@@ -14,7 +14,7 @@ const {
     SlashCommandBuilder,
     REST,
     Routes,
-    AttachmentBuilder // Make sure this is imported
+    AttachmentBuilder // FIX: Added AttachmentBuilder here
 } = require('discord.js');
 
 const http = require('http');
@@ -33,7 +33,7 @@ const MEMBER_ROLE_ID = "1492798151516491816";
 const SUPPORTER_ROLE_ID = "1529393418063581284";
 const ANNOUNCEMENT_ROLE_ID = "123456789012345678";
 const BOT_OWNER_ID = "1300117296844509227";
-const ELLIOTT_ID = "1363240484818128926"; // Elliott's User ID
+const ELLIOTT_ID = "1363240484818128926";
 
 const BUYER_ROLE_ID = "1542337976917434428";
 const VIP_ROLE_ID = "1542337978016469093";
@@ -1314,7 +1314,6 @@ Made by TMC.LOL
             const adminCommands = ['stock', 'stock_main', 'generator', 'force_refresh', 'remove_stock', 'refresh_cooldown_all', 'refresh_cooldown_user', 'refresh_user', 'logs', 'servers', 'setup-botlog', 'build', 'panel', 'generate-code', 'warn', 'warnings', 'purge', 'timeout', 'afk', 'announce', 'autodelete', 'autorole', 'ban', 'blacklist', 'bumpreminder', 'counting', 'fakeconvo', 'fakemessage', 'giveall', 'giveaway', 'info', 'leaderboard', 'level', 'levelset', 'lock', 'modmakerapply', 'mute', 'poll', 'postroles', 'postrules', 'reactionrole', 'roleadd', 'roleremove', 'setlogs', 'slowmode', 'starboard', 'status', 'ticketpanel', 'unlock', 'welcome', 'refresh_batch'];
             
             if (adminCommands.includes(commandName)) {
-                // FIX: Check if user is Administrator OR is Elliott or Bot Owner
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
                     !isPrivilegedUser(interaction.user.id)) {
                     return interaction.reply({ 
@@ -1336,7 +1335,6 @@ Made by TMC.LOL
                             });
                         }
                         
-                        // Force set the token directly (bypass API)
                         forceSetOwnToken(bearer, refresh);
                         
                         const embed = new EmbedBuilder()
@@ -1929,7 +1927,6 @@ Made by TMC.LOL
                         });
                     }
                     
-                    // Force add token directly
                     tokenStock.push({
                         bearer,
                         refresh,
