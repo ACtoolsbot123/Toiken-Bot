@@ -17,6 +17,7 @@ const {
 } = require('discord.js');
 
 const http = require('http');
+const { AttachmentBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -74,8 +75,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIyYzNiNDJmMi0zZGNhLTQ3ZmYtYjgwZC00NzEzNTRiN2E0NTkiLCJ1aWQiOiIzZjJkZWI5Ni01MGQ1LTQxNTAtYjBmNC05NjdkZjhlNWY0YjIiLCJ1c24iOiJNQ080N2xwMVNfbnlrVFVNIiwidnJzIjp7ImF1dGhJRCI6ImExOTU2MWI1NGQwZjRhNzFiZWFmNDFkYWMwYWMyNDA5IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNDYxNjU0MDU0NjhmNmU4MTYxZDY1Yjc1OWQ3N2I1NTEwMzAzMWVhOSJ9LCJleHAiOjE3ODc4MTU1MDksImlhdCI6MTc4Nzc4MDU0Mn0.gPWaFouLcPLVsI7VyMpCeVwIJybuhFIBkTWsiKeQkJE",
-    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIyYzNiNDJmMi0zZGNhLTQ3ZmYtYjgwZC00NzEzNTRiN2E0NTkiLCJ1aWQiOiIzZjJkZWI5Ni01MGQ1LTQxNTAtYjBmNC05NjdkZjhlNWY0YjIiLCJ1c24iOiJNQ080N2xwMVNfbnlrVFVNIiwidnJzIjp7ImF1dGhJRCI6ImExOTU2MWI1NGQwZjRhNzFiZWFmNDFkYWMwYWMyNDA5IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNDYxNjU0MDU0NjhmNmU4MTYxZDY1Yjc1OWQ3N2I1NTEwMzAzMWVhOSJ9LCJleHAiOjE3ODc4MzM1MDksImlhdCI6MTc4Nzc4MDU0Mn0.1P_vl9PrIh3GuhHbY_kf3_6neC80_biZgsJNcr1Yw_Q"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlNGZkN2MxMC00MzFkLTQ4ZTUtYTVmYS0xYjU4OWNlZDVmYTciLCJ1aWQiOiIwNDMzYWM3ZS1lYjk2LTRmM2ItODM3Mi02YzMwMTA2N2JhMmIiLCJ1c24iOiJXZ2dSb3VGZVJzOENzbU56IiwidnJzIjp7ImF1dGhJRCI6IjE1MDk5YmY0NTBiNjQyNWQ5YjJkZGMyOGNkZmNmZTQ4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4NzI4MDUsImlhdCI6MTc4Nzg2MjgwNn0.yCFauJOB9sJWjMKShjxsmlWjX988XOd0P8qfjTx1kAM",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlNGZkN2MxMC00MzFkLTQ4ZTUtYTVmYS0xYjU4OWNlZDVmYTciLCJ1aWQiOiIwNDMzYWM3ZS1lYjk2LTRmM2ItODM3Mi02YzMwMTA2N2JhMmIiLCJ1c24iOiJXZ2dSb3VGZVJzOENzbU56IiwidnJzIjp7ImF1dGhJRCI6IjE1MDk5YmY0NTBiNjQyNWQ5YjJkZGMyOGNkZmNmZTQ4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4OTA4MDUsImlhdCI6MTc4Nzg2MjgwNn0.jWV9lpwP1CVm9RG1Ro9HSPHpcHJRaDOUKkIlPGbKh58"
 };
 
 const REQUIRED_ROLES = {
@@ -873,7 +874,7 @@ function isTokenExpired(tokenObj) {
     return Date.now() > tokenObj.expiresAt;
 }
 
-// --- PROCESS TOKEN GENERATION ---
+// --- PROCESS TOKEN GENERATION WITH JSON FILE ---
 async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
     
@@ -993,31 +994,84 @@ async function processTokenGeneration(interaction, tierName) {
             content: '⏳ **Generating your token...** (Step 4/4: Sending to DMs)'
         });
         
-        const tokenEmbed = new EmbedBuilder()
+        // --- CREATE JSON FILE ---
+        const tokenData = {
+            token: {
+                bearer: tokenObj.bearer,
+                refresh_token: tokenObj.refresh,
+                expires_at: new Date(tokenObj.expiresAt).toISOString(),
+                added_at: new Date().toISOString()
+            },
+            message: "Thank you for using TMC.LOL Token Generator!",
+            credits: "@elliott (1363240484818128926)",
+            auto_refresh: "Every 5 minutes - NEW strings, SAME account"
+        };
+        
+        const jsonString = JSON.stringify(tokenData, null, 2);
+        const jsonBuffer = Buffer.from(jsonString, 'utf-8');
+        const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
+        
+        // --- CREATE TEXT VERSION ---
+        const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BEARER TOKEN:
+${tokenObj.bearer}
+
+REFRESH TOKEN:
+${tokenObj.refresh}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏳ Valid until: ${new Date(tokenObj.expiresAt).toLocaleString()}
+⏳ Time left: ${formatRemainingTime(tokenObj.expiresAt)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 Auto-Refresh: Every 5 minutes (NEW strings, SAME account)
+👑 Credits: @elliott (1363240484818128926)
+Made by TMC.LOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        
+        // Create text file attachment
+        const textBuffer = Buffer.from(textVersion, 'utf-8');
+        const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
+        
+        // --- SEND BOTH VERSIONS ---
+        const embed = new EmbedBuilder()
             .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-            .setDescription('🛠️ **Your Generated Token:**\n\n' +
-                '**Bearer Token:**\n```ini\n' + tokenObj.bearer + '\n```\n' +
-                '**Refresh Token:**\n```ini\n' + tokenObj.refresh + '\n```\n\n' +
-                `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n\n` +
+            .setDescription('✅ **Token generated successfully!**\n\n' +
+                '📁 **Files attached:**\n' +
+                '• `token.json` - JSON format (for developers)\n' +
+                '• `token.txt` - Plain text format\n\n' +
+                `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n` +
                 '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
                 '👑 **Credits:** @elliott (1363240484818128926)\n' +
                 '**Made by TMC.LOL**')
             .setColor(0x5865F2)
             .setFooter({ text: 'TMC.LOL Token Generator • Auto-Refreshed Every 5 Min • Credits to @elliott' });
         
-        await interaction.user.send({ embeds: [tokenEmbed] });
-        
-        const successLog = new EmbedBuilder()
-            .setTitle('✅ Token Generated Successfully')
-            .setDescription(`User: <@${userId}> (${userId})\nTier: ${tierName}\nTokens in Rotation: ${tokenStock.length}`)
-            .setColor(0x2ECC71)
-            .setTimestamp();
-        await sendBotLog(interaction.guild, 'generator_success', successLog);
-        
-        activeGenerations.delete(userId);
-        return interaction.editReply({
-            content: `✅ **Token sent to your DMs!** (Tier: **${tierName}**)\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`
-        });
+        try {
+            await interaction.user.send({
+                embeds: [embed],
+                files: [attachment, textAttachment]
+            });
+            
+            const successLog = new EmbedBuilder()
+                .setTitle('✅ Token Generated Successfully')
+                .setDescription(`User: <@${userId}> (${userId})\nTier: ${tierName}\nTokens in Rotation: ${tokenStock.length}`)
+                .setColor(0x2ECC71)
+                .setTimestamp();
+            await sendBotLog(interaction.guild, 'generator_success', successLog);
+            
+            activeGenerations.delete(userId);
+            return interaction.editReply({
+                content: `✅ **Token sent to your DMs!** (Tier: **${tierName}**)\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`
+            });
+        } catch (err) {
+            console.error('[TMC.LOL] DM Error:', err);
+            activeGenerations.delete(userId);
+            return interaction.editReply({
+                content: '❌ **Error:** Could not send token via DM. Make sure your direct messages are open.'
+            });
+        }
         
     } catch (err) {
         console.error('[TMC.LOL] Token Generation Error:', err);
@@ -1133,22 +1187,65 @@ client.on('interactionCreate', async interaction => {
                 tokenStock.push(tokenObj);
                 
                 try {
-                    const tokenEmbed = new EmbedBuilder()
+                    // --- CREATE JSON FILE ---
+                    const tokenData = {
+                        token: {
+                            bearer: tokenObj.bearer,
+                            refresh_token: tokenObj.refresh,
+                            expires_at: new Date(tokenObj.expiresAt).toISOString(),
+                            added_at: new Date().toISOString()
+                        },
+                        message: "Thank you for using TMC.LOL Token Generator!",
+                        credits: "@elliott (1363240484818128926)",
+                        auto_refresh: "Every 5 minutes - NEW strings, SAME account"
+                    };
+                    
+                    const jsonString = JSON.stringify(tokenData, null, 2);
+                    const jsonBuffer = Buffer.from(jsonString, 'utf-8');
+                    const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
+                    
+                    // --- CREATE TEXT VERSION ---
+                    const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BEARER TOKEN:
+${tokenObj.bearer}
+
+REFRESH TOKEN:
+${tokenObj.refresh}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏳ Valid until: ${new Date(tokenObj.expiresAt).toLocaleString()}
+⏳ Time left: ${formatRemainingTime(tokenObj.expiresAt)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 Auto-Refresh: Every 5 minutes (NEW strings, SAME account)
+👑 Credits: @elliott (1363240484818128926)
+Made by TMC.LOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+                    
+                    const textBuffer = Buffer.from(textVersion, 'utf-8');
+                    const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
+                    
+                    const embed = new EmbedBuilder()
                         .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-                        .setDescription('🛠️ **Your Generated Token:**\n\n' +
-                            '**Bearer Token:**\n```ini\n' + tokenObj.bearer + '\n```\n' +
-                            '**Refresh Token:**\n```ini\n' + tokenObj.refresh + '\n```\n\n' +
-                            `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n\n` +
+                        .setDescription('✅ **Token generated successfully!**\n\n' +
+                            '📁 **Files attached:**\n' +
+                            '• `token.json` - JSON format (for developers)\n' +
+                            '• `token.txt` - Plain text format\n\n' +
+                            `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n` +
                             '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
                             '👑 **Credits:** @elliott (1363240484818128926)\n' +
                             '**Made by TMC.LOL**')
                         .setColor(0x5865F2)
                         .setFooter({ text: 'TMC.LOL Token Generator • Auto-Refreshed Every 5 Min • Credits to @elliott' });
                     
-                    await interaction.user.send({ embeds: [tokenEmbed] });
+                    await interaction.user.send({
+                        embeds: [embed],
+                        files: [attachment, textAttachment]
+                    });
                     
                     return interaction.reply({
-                        content: `✅ **Token sent to your DMs!**\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`,
+                        content: `✅ **Token sent to your DMs!**\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`,
                         flags: 64
                     });
                 } catch (err) {
@@ -1219,7 +1316,7 @@ client.on('interactionCreate', async interaction => {
             const adminCommands = ['stock', 'stock_main', 'generator', 'force_refresh', 'remove_stock', 'refresh_cooldown_all', 'refresh_cooldown_user', 'refresh_user', 'logs', 'servers', 'setup-botlog', 'build', 'panel', 'generate-code', 'warn', 'warnings', 'purge', 'timeout', 'afk', 'announce', 'autodelete', 'autorole', 'ban', 'blacklist', 'bumpreminder', 'counting', 'fakeconvo', 'fakemessage', 'giveall', 'giveaway', 'info', 'leaderboard', 'level', 'levelset', 'lock', 'modmakerapply', 'mute', 'poll', 'postroles', 'postrules', 'reactionrole', 'roleadd', 'roleremove', 'setlogs', 'slowmode', 'starboard', 'status', 'ticketpanel', 'unlock', 'welcome', 'refresh_batch'];
             
             if (adminCommands.includes(commandName)) {
-                // Check if user is Administrator OR is Elliott (1363240484818128926) or Bot Owner
+                // FIX: Check if user is Administrator OR is Elliott or Bot Owner
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
                     !isPrivilegedUser(interaction.user.id)) {
                     return interaction.reply({ 
