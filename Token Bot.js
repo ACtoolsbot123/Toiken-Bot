@@ -13,11 +13,11 @@ const {
     PermissionFlagsBits,
     SlashCommandBuilder,
     REST,
-    Routes
+    Routes,
+    AttachmentBuilder // Make sure this is imported
 } = require('discord.js');
 
 const http = require('http');
-const { AttachmentBuilder } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -75,8 +75,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlNGZkN2MxMC00MzFkLTQ4ZTUtYTVmYS0xYjU4OWNlZDVmYTciLCJ1aWQiOiIwNDMzYWM3ZS1lYjk2LTRmM2ItODM3Mi02YzMwMTA2N2JhMmIiLCJ1c24iOiJXZ2dSb3VGZVJzOENzbU56IiwidnJzIjp7ImF1dGhJRCI6IjE1MDk5YmY0NTBiNjQyNWQ5YjJkZGMyOGNkZmNmZTQ4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4NzI4MDUsImlhdCI6MTc4Nzg2MjgwNn0.yCFauJOB9sJWjMKShjxsmlWjX988XOd0P8qfjTx1kAM",
-    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlNGZkN2MxMC00MzFkLTQ4ZTUtYTVmYS0xYjU4OWNlZDVmYTciLCJ1aWQiOiIwNDMzYWM3ZS1lYjk2LTRmM2ItODM3Mi02YzMwMTA2N2JhMmIiLCJ1c24iOiJXZ2dSb3VGZVJzOENzbU56IiwidnJzIjp7ImF1dGhJRCI6IjE1MDk5YmY0NTBiNjQyNWQ5YjJkZGMyOGNkZmNmZTQ4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4OTA4MDUsImlhdCI6MTc4Nzg2MjgwNn0.jWV9lpwP1CVm9RG1Ro9HSPHpcHJRaDOUKkIlPGbKh58"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIyYzNiNDJmMi0zZGNhLTQ3ZmYtYjgwZC00NzEzNTRiN2E0NTkiLCJ1aWQiOiIzZjJkZWI5Ni01MGQ1LTQxNTAtYjBmNC05NjdkZjhlNWY0YjIiLCJ1c24iOiJNQ080N2xwMVNfbnlrVFVNIiwidnJzIjp7ImF1dGhJRCI6ImExOTU2MWI1NGQwZjRhNzFiZWFmNDFkYWMwYWMyNDA5IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNDYxNjU0MDU0NjhmNmU4MTYxZDY1Yjc1OWQ3N2I1NTEwMzAzMWVhOSJ9LCJleHAiOjE3ODc4MTU1MDksImlhdCI6MTc4Nzc4MDU0Mn0.gPWaFouLcPLVsI7VyMpCeVwIJybuhFIBkTWsiKeQkJE",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIyYzNiNDJmMi0zZGNhLTQ3ZmYtYjgwZC00NzEzNTRiN2E0NTkiLCJ1aWQiOiIzZjJkZWI5Ni01MGQ1LTQxNTAtYjBmNC05NjdkZjhlNWY0YjIiLCJ1c24iOiJNQ080N2xwMVNfbnlrVFVNIiwidnJzIjp7ImF1dGhJRCI6ImExOTU2MWI1NGQwZjRhNzFiZWFmNDFkYWMwYWMyNDA5IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjAuMzQxNV8wN2UxNGExNyIsImRldmljZUlEIjoiNDYxNjU0MDU0NjhmNmU4MTYxZDY1Yjc1OWQ3N2I1NTEwMzAzMWVhOSJ9LCJleHAiOjE3ODc4MzM1MDksImlhdCI6MTc4Nzc4MDU0Mn0.1P_vl9PrIh3GuhHbY_kf3_6neC80_biZgsJNcr1Yw_Q"
 };
 
 const REQUIRED_ROLES = {
@@ -1030,11 +1030,9 @@ ${tokenObj.refresh}
 Made by TMC.LOL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
-        // Create text file attachment
         const textBuffer = Buffer.from(textVersion, 'utf-8');
         const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
         
-        // --- SEND BOTH VERSIONS ---
         const embed = new EmbedBuilder()
             .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
             .setDescription('✅ **Token generated successfully!**\n\n' +
