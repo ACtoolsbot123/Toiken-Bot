@@ -282,6 +282,9 @@ async function validateSteamToken(bearerToken, retries = 3) {
         }
     }
 
+    let payload = null;
+    let expTime = null;
+
     try {
         const parts = bearerToken.split('.');
         if (parts.length !== 3) {
@@ -295,10 +298,10 @@ async function validateSteamToken(bearerToken, retries = 3) {
             };
         }
         
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
         
         if (payload.exp) {
-            const expTime = payload.exp * 1000;
+            expTime = payload.exp * 1000;
             console.log(`[TMC.LOL] JWT expires at: ${new Date(expTime).toISOString()}`);
             
             if (Date.now() > expTime) {
@@ -338,15 +341,28 @@ async function validateSteamToken(bearerToken, retries = 3) {
         };
     }
 
-    // If API is not working, bypass validation
+    // If API is not working, trust the local JWT check
     if (!apiWorking) {
-        console.log('[TMC.LOL] ⚠️ API not working - Bypassing validation');
+        console.log('[TMC.LOL] ⚠️ API not reachable - Using local JWT validation only');
+        if (payload && payload.exp) {
+            const expTime = payload.exp * 1000;
+            if (Date.now() < expTime) {
+                console.log(`[TMC.LOL] ⚠️ JWT not expired locally (${new Date(expTime).toISOString()}) - treating as valid`);
+                return {
+                    valid: true,
+                    status: 200,
+                    data: { locally_valid: true },
+                    expiresAt: expTime,
+                    message: 'Token appears valid locally - API unreachable for full validation'
+                };
+            }
+        }
         return {
-            valid: true,
-            status: 200,
+            valid: false,
+            status: 0,
             data: { bypassed: true },
-            expiresAt: Date.now() + (60 * 60 * 1000),
-            message: 'Validation bypassed - API not reachable'
+            expiresAt: null,
+            message: 'Cannot validate token - API unreachable and token may be expired.'
         };
     }
 
@@ -472,15 +488,9 @@ async function validateSteamToken(bearerToken, retries = 3) {
 // ============================================
 // TOKEN REFRESH SYSTEM WITH QUEUE
 // ============================================
-async function refreshToken(refreshToken) {
+async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token...');
-        
-        // If API is not working, skip refresh
-        if (!apiWorking) {
-            console.log('[TMC.LOL] ⚠️ API not working - Skipping refresh');
-            return { success: false };
-        }
         
         // If already refreshing, queue this request
         if (isRefreshing) {
@@ -493,92 +503,91 @@ async function refreshToken(refreshToken) {
         isRefreshing = true;
         console.log('[TMC.LOL] 🔒 Refresh lock acquired');
 
-        // ACTUALLY CALL THE API TO GET A NEW TOKEN
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        // Try ALL API URLs until one works
+        const urlsToTry = apiWorking ? [ACTIVE_API_URL, ...API_URLS.filter(u => u !== ACTIVE_API_URL)] : [...API_URLS];
 
-        const response = await fetch(`${ACTIVE_API_URL}/refresh`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'TMC.LOL-Bot/1.0'
-            },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-            signal: controller.signal
-        });
+        for (const url of urlsToTry) {
+            try {
+                console.log(`[TMC.LOL] 🔄 Trying refresh at: ${url}/refresh`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        clearTimeout(timeoutId);
+                const response = await fetch(`${url}/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${refreshTk}`,
+                        'User-Agent': 'TMC.LOL-Bot/1.0'
+                    },
+                    body: JSON.stringify({ refresh_token: refreshTk }),
+                    signal: controller.signal
+                });
 
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.log('[TMC.LOL] ❌ Response is not JSON, treating as failure');
-            processQueue(new Error('Invalid response format'), null);
-            isRefreshing = false;
-            return { success: false };
+                clearTimeout(timeoutId);
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.log(`[TMC.LOL] ❌ ${url} - Not JSON response`);
+                    continue;
+                }
+
+                const data = await response.json();
+
+                if (response.status === 200 && (data.access_token || data.bearer)) {
+                    const newBearer = data.access_token || data.bearer;
+                    const newRefresh = data.refresh_token || refreshTk;
+                    const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + (60 * 60 * 1000);
+
+                    if (!newBearer || newBearer === refreshTk) {
+                        console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token`);
+                        continue;
+                    }
+
+                    console.log(`[TMC.LOL] ✅ Successfully refreshed token via ${url}!`);
+                    console.log(`[TMC.LOL] New Bearer: ${newBearer.substring(0, 50)}...`);
+
+                    DEFAULT_TOKEN.bearer = newBearer;
+                    DEFAULT_TOKEN.refresh_token = newRefresh;
+                    ACTIVE_API_URL = url;
+                    apiWorking = true;
+
+                    if (tokenStock.length > 0) {
+                        tokenStock[0] = {
+                            bearer: newBearer,
+                            refresh: newRefresh,
+                            addedAt: Date.now(),
+                            expiresAt: expiresAt
+                        };
+                    }
+
+                    const result = {
+                        success: true,
+                        bearer: newBearer,
+                        refresh: newRefresh,
+                        expiresAt: expiresAt
+                    };
+
+                    processQueue(null, result);
+                    isRefreshing = false;
+                    console.log('[TMC.LOL] 🔓 Refresh lock released');
+                    return result;
+                } else {
+                    console.log(`[TMC.LOL] ❌ ${url} - Status: ${response.status}`);
+                }
+            } catch (err) {
+                console.log(`[TMC.LOL] ❌ ${url} - ${err.message}`);
+            }
         }
 
-        const data = await response.json();
-
-        if (response.status === 200 && (data.access_token || data.bearer)) {
-            const newBearer = data.access_token || data.bearer;
-            const newRefresh = data.refresh_token || refreshToken;
-            const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + (60 * 60 * 1000);
-
-            if (!newBearer || newBearer === refreshToken) {
-                console.log('[TMC.LOL] ⚠️ Refresh returned same token, treating as failure');
-                throw new Error('Refresh returned same token');
-            }
-
-            console.log('[TMC.LOL] ✅ Successfully refreshed token!');
-            console.log(`[TMC.LOL] New Bearer: ${newBearer.substring(0, 50)}...`);
-
-            // Update DEFAULT_TOKEN with the NEW tokens
-            DEFAULT_TOKEN.bearer = newBearer;
-            DEFAULT_TOKEN.refresh_token = newRefresh;
-
-            // Also update the stock
-            if (tokenStock.length > 0) {
-                tokenStock[0] = {
-                    bearer: newBearer,
-                    refresh: newRefresh,
-                    addedAt: Date.now(),
-                    expiresAt: expiresAt
-                };
-            }
-
-            const result = {
-                success: true,
-                bearer: newBearer,
-                refresh: newRefresh,
-                expiresAt: expiresAt
-            };
-
-            // Process the queue with the FULL result object so queued callers get the right shape
-            processQueue(null, result);
-            isRefreshing = false;
-            console.log('[TMC.LOL] 🔓 Refresh lock released');
-            return result;
-
-        } else {
-            console.log(`[TMC.LOL] ❌ Refresh failed with status: ${response.status}`);
-            console.log(`[TMC.LOL] Response:`, data);
-            
-            processQueue(new Error(`Refresh failed with status ${response.status}`), null);
-            isRefreshing = false;
-            return { success: false };
-        }
+        console.log('[TMC.LOL] ❌ All refresh URLs failed');
+        processQueue(new Error('All refresh URLs failed'), null);
+        isRefreshing = false;
+        return { success: false };
 
     } catch (err) {
         console.error('[TMC.LOL] Refresh error:', err.message);
-        console.log('[TMC.LOL] ⚠️ Falling back to default token...');
-        
-        // Process queue with error
         processQueue(err, null);
         isRefreshing = false;
-        console.log('[TMC.LOL] 🔓 Refresh lock released (error)');
-
-        // Return failure
         return { success: false };
     }
 }
@@ -617,12 +626,7 @@ async function refreshTokenInStock() {
         }
     } catch (err) {
         console.error('[TMC.LOL] Error in refresh process:', err);
-        tokenStock[0] = {
-            bearer: DEFAULT_TOKEN.bearer,
-            refresh: DEFAULT_TOKEN.refresh_token,
-            addedAt: Date.now(),
-            expiresAt: Date.now() + (60 * 60 * 1000)
-        };
+        console.log('[TMC.LOL] ❌ Keeping existing token - refresh failed');
     }
     
     if (tokenStock.length === 0) {
@@ -967,20 +971,20 @@ async function processTokenGeneration(interaction, tierName) {
                 };
                 const newValidation = await validateSteamToken(tokenStock[0].bearer);
                 if (!newValidation.valid) {
-                    tokenStock[0] = {
-                        bearer: DEFAULT_TOKEN.bearer,
-                        refresh: DEFAULT_TOKEN.refresh_token,
-                        addedAt: Date.now(),
-                        expiresAt: Date.now() + (60 * 60 * 1000)
-                    };
+                    activeGenerations.delete(userId);
+                    return interaction.editReply({
+                        content: '❌ **Token Expired!** Refresh succeeded but the new token is still invalid.\n\n' +
+                                 '🔑 **Fix:** An admin needs to run `/stock_main` with a fresh bearer + refresh token.\n' +
+                                 '💡 The current tokens in stock are expired and cannot be auto-refreshed.'
+                    });
                 }
             } else {
-                tokenStock[0] = {
-                    bearer: DEFAULT_TOKEN.bearer,
-                    refresh: DEFAULT_TOKEN.refresh_token,
-                    addedAt: Date.now(),
-                    expiresAt: Date.now() + (60 * 60 * 1000)
-                };
+                activeGenerations.delete(userId);
+                return interaction.editReply({
+                    content: '❌ **Token Expired!** Could not refresh the token.\n\n' +
+                             '🔑 **Fix:** An admin needs to run `/stock_main` with a fresh bearer + refresh token.\n' +
+                             '💡 The current tokens in stock are expired and no working API was found to refresh them.'
+                });
             }
             tokenObj = tokenStock[0];
         }
@@ -1171,12 +1175,12 @@ client.on('interactionCreate', async interaction => {
                             expiresAt: refreshResult.expiresAt || Date.now() + (60 * 60 * 1000)
                         };
                     } else {
-                        tokenStock[0] = {
-                            bearer: DEFAULT_TOKEN.bearer,
-                            refresh: DEFAULT_TOKEN.refresh_token,
-                            addedAt: Date.now(),
-                            expiresAt: Date.now() + (60 * 60 * 1000)
-                        };
+                        return interaction.reply({
+                            content: '❌ **Token Expired!** Could not refresh the token.\n\n' +
+                                     '🔑 **Fix:** An admin needs to run `/stock_main` with a fresh bearer + refresh token.\n' +
+                                     '💡 The current tokens in stock are expired and no working API was found to refresh them.',
+                            flags: 64
+                        });
                     }
                     tokenObj = tokenStock[0];
                 }
