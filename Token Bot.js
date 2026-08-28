@@ -966,7 +966,9 @@ const commandsData = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map(command => command.toJSON());
 
-// --- READY EVENT --- MUST BE BEFORE LOGIN
+// ============================================================
+// ⚠️ CRITICAL: READY EVENT MUST BE HERE (BEFORE LOGIN) ⚠️
+// ============================================================
 client.once('ready', async () => {
     console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
     console.log('[TMC.LOL] 🔑 Token Generator Active');
@@ -1064,6 +1066,10 @@ client.once('ready', async () => {
     startAutoRefresh();
     startAutoRefetcher();
 });
+
+// ============================================================
+// REST OF THE CODE (Functions, Commands, etc.)
+// ============================================================
 
 function generateSupporterCode() {
     const randomNums = () => Math.floor(1000 + Math.random() * 9000);
