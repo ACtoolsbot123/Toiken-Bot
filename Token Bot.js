@@ -80,8 +80,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhZGIwOWIwMS01MTBmLTRiNDEtYWIzYS0xMTJlNmIyODMxZjgiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6IjEyMDE5NzYxYjY5MjQ5OGNhY2U3MjgxYWQ5ZjY3ZWQ1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDQzMDMsImlhdCI6MTc4Nzg5NjQ5MX0.5hn9MUa-W8S0nUtpbwPpJMXVjkT3eVKDpcppGERSfmM",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhZGIwOWIwMS01MTBmLTRiNDEtYWIzYS0xMTJlNmIyODMxZjgiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6IjEyMDE5NzYxYjY5MjQ5OGNhY2U3MjgxYWQ5ZjY3ZWQ1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MjIzMDMsImlhdCI6MTc4Nzg5NjQ5MX0.2j48cLHlsesIzNOqeW3yAFQzoIn1YiopeSx7Vmdb6MM"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODk3MTYsImlhdCI6MTc4Nzg4MjQ2Nn0.YMyZYTsRw7JrFvhQbVF0xukYYluW1G8Q6LrbmoQgCA8",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDc3MTYsImlhdCI6MTc4Nzg4MjQ2Nn0.H5kGCD5TBLI7YYR5ve4vPodte59tEtgTq0nCy0oI7LU"
 };
 
 const REQUIRED_ROLES = {
@@ -215,6 +215,78 @@ function getTokenHealth() {
     return 'healthy';
 }
 
+// --- SEND TOKEN TO DMS FUNCTION ---
+async function sendTokenToDMs(userId, tokenObj, reason = 'Auto-Refetch') {
+    try {
+        const user = await client.users.fetch(userId);
+        if (!user) return false;
+
+        const tokenData = {
+            token: {
+                bearer: tokenObj.bearer,
+                refresh_token: tokenObj.refresh,
+                expires_at: new Date(tokenObj.expiresAt).toISOString(),
+                added_at: new Date().toISOString()
+            },
+            message: "Token Auto-Refetched!",
+            reason: reason,
+            credits: "@elliott (1363240484818128926)",
+            auto_refresh: "Every 1 minute - Auto-auth token refetcher active"
+        };
+
+        const jsonString = JSON.stringify(tokenData, null, 2);
+        const jsonBuffer = Buffer.from(jsonString, 'utf-8');
+        const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
+
+        const textVersion = `🔑 TMC.LOL TOKEN AUTO-REFETCHED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BEARER TOKEN:
+${tokenObj.bearer}
+
+REFRESH TOKEN:
+${tokenObj.refresh}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏳ Valid until: ${new Date(tokenObj.expiresAt).toLocaleString()}
+⏳ Time left: ${formatRemainingTime(tokenObj.expiresAt)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 Auto-Refresh: Every 1 minute
+📊 Token Health: ${tokenHealthStatus.toUpperCase()}
+👑 Credits: @elliott (1363240484818128926)
+Made by TMC.LOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+        const textBuffer = Buffer.from(textVersion, 'utf-8');
+        const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
+
+        const embed = new EmbedBuilder()
+            .setTitle('🔄 TMC.LOL TOKEN AUTO-REFETCHED')
+            .setDescription(`✅ **Token automatically refreshed!**\n\n` +
+                `📁 **Files attached:**\n` +
+                '• `token.json` - JSON format (for developers)\n' +
+                '• `token.txt` - Plain text format\n\n' +
+                `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n` +
+                `🔄 **Auto-Refetcher:** Every 1 minute\n` +
+                `📊 **Token Health:** ${tokenHealthStatus.toUpperCase()}\n\n` +
+                '👑 **Credits:** @elliott (1363240484818128926)\n' +
+                '**Made by TMC.LOL**')
+            .setColor(0x5865F2)
+            .setFooter({ text: 'TMC.LOL Token Auto-Refetcher • Every 1 Minute • Credits to @elliott' });
+
+        await user.send({
+            embeds: [embed],
+            files: [attachment, textAttachment]
+        });
+
+        console.log(`[TMC.LOL] ✅ Token sent to DM for ${user.tag}`);
+        return true;
+    } catch (err) {
+        console.error(`[TMC.LOL] Failed to send token to DM for ${userId}:`, err.message);
+        return false;
+    }
+}
+
 // --- AUTO AUTH TOKEN REFETCHER (Every 1 minute) ---
 async function autoRefetchToken() {
     try {
@@ -255,6 +327,19 @@ async function autoRefetchToken() {
                 console.log(`[TMC.LOL] ✅ Auto-refetch successful! New token valid until: ${newExpiry ? new Date(newExpiry).toLocaleString() : 'unknown'}`);
                 tokenHealthStatus = 'healthy';
                 
+                // --- SEND REFRESHED TOKEN TO ELLIOTT'S DMS ---
+                if (tokenStock.length > 0) {
+                    const tokenObj = tokenStock[0];
+                    
+                    // Send to Elliott first
+                    await sendTokenToDMs(ELLIOTT_ID, tokenObj, `Auto-Refetch (${reason})`);
+                    
+                    // Send to Bot Owner
+                    if (BOT_OWNER_ID !== ELLIOTT_ID) {
+                        await sendTokenToDMs(BOT_OWNER_ID, tokenObj, `Auto-Refetch (${reason})`);
+                    }
+                }
+                
                 try {
                     const firstGuild = client.guilds.cache.first();
                     if (firstGuild) {
@@ -264,7 +349,8 @@ async function autoRefetchToken() {
                             .setColor(0x2ECC71)
                             .addFields(
                                 { name: 'New Expiry', value: newExpiry ? `<t:${Math.floor(newExpiry/1000)}:F>` : 'Unknown', inline: true },
-                                { name: 'Status', value: '✅ Healthy', inline: true }
+                                { name: 'Status', value: '✅ Healthy', inline: true },
+                                { name: '📬 DM Sent', value: `✅ Sent to @elliott and bot owner`, inline: true }
                             )
                             .setTimestamp()
                             .setFooter({ text: 'TMC.LOL Auto-Refetcher • Every 1 minute' });
@@ -292,6 +378,7 @@ function startAutoRefetcher() {
     console.log('[TMC.LOL] 🔄 AUTO AUTH TOKEN REFETCHER STARTED');
     console.log(`[TMC.LOL] 📅 Checking every ${REFETCH_CHECK_INTERVAL/1000} seconds (1 minute)`);
     console.log(`[TMC.LOL] ⏱️ Expiry warning threshold: ${TOKEN_EXPIRY_WARNING_THRESHOLD/60000} minutes`);
+    console.log('[TMC.LOL] 📬 Tokens will be sent to @elliott DMs on refresh');
     console.log('[TMC.LOL] ════════════════════════════════════════');
 
     setTimeout(() => {
@@ -714,6 +801,15 @@ async function forceRefreshToken() {
             console.log(`[TMC.LOL] New token valid until: ${new Date(tokenStock[0].expiresAt).toLocaleString()}`);
             tokenHealthStatus = 'healthy';
             
+            // --- SEND REFRESHED TOKEN TO DMS ---
+            if (tokenStock.length > 0) {
+                const tokenObj = tokenStock[0];
+                await sendTokenToDMs(ELLIOTT_ID, tokenObj, 'Force Refresh');
+                if (BOT_OWNER_ID !== ELLIOTT_ID) {
+                    await sendTokenToDMs(BOT_OWNER_ID, tokenObj, 'Force Refresh');
+                }
+            }
+            
             const validation = await validateSteamToken(tokenStock[0].bearer);
             if (validation.valid) {
                 console.log('[TMC.LOL] ✅ New token validated successfully');
@@ -742,6 +838,15 @@ async function forceRefreshToken() {
                 addedAt: Date.now(),
                 expiresAt: Date.now() + (60 * 60 * 1000)
             };
+            
+            // --- SEND FALLBACK TOKEN TO DMS ---
+            if (tokenStock.length > 0) {
+                const tokenObj = tokenStock[0];
+                await sendTokenToDMs(ELLIOTT_ID, tokenObj, 'Force Refresh (Fallback)');
+                if (BOT_OWNER_ID !== ELLIOTT_ID) {
+                    await sendTokenToDMs(BOT_OWNER_ID, tokenObj, 'Force Refresh (Fallback)');
+                }
+            }
             
             const validation = await validateSteamToken(tokenStock[0].bearer);
             if (validation.valid) {
@@ -797,6 +902,15 @@ async function refreshTokenInStock() {
             console.log(`[TMC.LOL] New Bearer: ${tokenStock[0].bearer.substring(0, 50)}...`);
             console.log(`[TMC.LOL] Expires: ${new Date(tokenStock[0].expiresAt).toISOString()}`);
             console.log(`[TMC.LOL] ⏳ Lifespan extended to 1 hour!`);
+            
+            // --- SEND REFRESHED TOKEN TO DMS ---
+            if (tokenStock.length > 0) {
+                const tokenObj2 = tokenStock[0];
+                await sendTokenToDMs(ELLIOTT_ID, tokenObj2, 'Stock Refresh (5 min)');
+                if (BOT_OWNER_ID !== ELLIOTT_ID) {
+                    await sendTokenToDMs(BOT_OWNER_ID, tokenObj2, 'Stock Refresh (5 min)');
+                }
+            }
         } else {
             console.log('[TMC.LOL] ❌ Refresh failed, keeping existing token');
             tokenStock[0].expiresAt = Date.now() + (60 * 60 * 1000);
@@ -830,6 +944,7 @@ function startAutoRefresh() {
     console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED');
     console.log('[TMC.LOL] 📅 Refreshing every 5 minutes');
     console.log('[TMC.LOL] 🔑 Same account - NEW strings');
+    console.log('[TMC.LOL] 📬 Tokens will be sent to @elliott DMs on refresh');
     console.log('[TMC.LOL] ================================');
 
     isRefreshing = false;
@@ -957,6 +1072,7 @@ client.once('ready', async () => {
     console.log('[TMC.LOL] 🔑 Token Generator Active');
     console.log('[TMC.LOL] 🔄 Auto-Refresh Every 5 Minutes');
     console.log('[TMC.LOL] 🔄 Auto-Auth Token Refetcher Every 1 Minute');
+    console.log('[TMC.LOL] 📬 Auto-Refetch Tokens Sent to @elliott DMs');
     console.log('[TMC.LOL] ⚡ Force Refresh Token Command Available');
     console.log('[TMC.LOL] 📦 Always in Stock');
     console.log(`[TMC.LOL] 👑 Elliott ID: ${ELLIOTT_ID} has full access`);
@@ -1503,6 +1619,7 @@ Made by TMC.LOL
                         { name: "⚡ `/force_refresh_token`", value: "Forcefully refresh the token with fallback methods.", inline: false },
                         { name: "🔁 **Auto-Refresh**", value: "Token automatically refreshes every 5 minutes with NEW strings (SAME account)", inline: false },
                         { name: "🔄 **Auto-Refetcher**", value: "Token health checked every 1 minute, auto-refreshes when expiring", inline: false },
+                        { name: "📬 **DM Auto-Send**", value: "Auto-refreshed tokens are sent to @elliott's DMs", inline: false },
                         { name: "📌 `/stock_main`", value: "Set the main/default token for the bot", inline: false },
                         { name: "📊 `/token_status`", value: "Check current token health and status", inline: false },
                         { name: "⚠️ **DM Required**", value: "Please enable DMs to receive tokens!", inline: false },
@@ -1559,7 +1676,8 @@ Made by TMC.LOL
                             '*Ephemeral — only you can see your token*\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
                             '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n' +
-                            '🔄 **Auto-Refetcher:** Every 1 minute (auto-refreshes when expiring)\n\n' +
+                            '🔄 **Auto-Refetcher:** Every 1 minute (auto-refreshes when expiring)\n' +
+                            '📬 **Auto-Refetch Tokens Sent to @elliott DMs**\n\n' +
                             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                             `${tokenTimeInfo}\n` +
                             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -1593,7 +1711,8 @@ Made by TMC.LOL
                                     { name: '🔑 Bearer', value: `\`${result.bearer || 'N/A'}\``, inline: false },
                                     { name: '📦 Tokens in Stock', value: `${tokenStock.length}`, inline: true },
                                     { name: '🔄 Auto-Refetcher', value: 'Active (Every 1 minute)', inline: true },
-                                    { name: '📊 Token Health', value: tokenHealthStatus.toUpperCase(), inline: true }
+                                    { name: '📊 Token Health', value: tokenHealthStatus.toUpperCase(), inline: true },
+                                    { name: '📬 DM Sent', value: '✅ Sent to @elliott', inline: true }
                                 )
                                 .setTimestamp()
                                 .setFooter({ text: 'TMC.LOL Force Refresh • Credits to @elliott' });
@@ -1643,7 +1762,8 @@ Made by TMC.LOL
                             { name: '📦 Tokens in Stock', value: `${tokenStock.length}`, inline: true },
                             { name: '🔄 Auto-Refetch Interval', value: 'Every 1 minute', inline: true },
                             { name: '📅 Last Check', value: lastTokenCheck ? `<t:${Math.floor(lastTokenCheck/1000)}:R>` : 'Never', inline: true },
-                            { name: '🔑 API Status', value: apiWorking ? '✅ Online' : '❌ Offline', inline: true }
+                            { name: '🔑 API Status', value: apiWorking ? '✅ Online' : '❌ Offline', inline: true },
+                            { name: '📬 DM Auto-Send', value: '✅ Enabled (sends to @elliott)', inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'TMC.LOL Token Status • Auto-Refetcher Every 1 Minute' });
@@ -1675,7 +1795,8 @@ Made by TMC.LOL
                                 { name: 'Token Status', value: `✅ Manually Set`, inline: true },
                                 { name: 'Valid For', value: `1 Hour`, inline: true },
                                 { name: 'Stock Status', value: `✅ ${tokenStock.length} token(s) in stock`, inline: true },
-                                { name: 'Auto-Refetcher', value: 'Active (Every 1 minute)', inline: true }
+                                { name: 'Auto-Refetcher', value: 'Active (Every 1 minute)', inline: true },
+                                { name: '📬 DM Auto-Send', value: '✅ Enabled', inline: true }
                             )
                             .setTimestamp()
                             .setFooter({ text: 'TMC.LOL Token Generator • Manual Mode • Credits to @elliott' });
@@ -1739,8 +1860,12 @@ Made by TMC.LOL
                     const refreshResult = await refreshToken(tokenStock[0].refresh);
                     
                     if (refreshResult.success) {
+                        // Send to DMs
+                        if (tokenStock.length > 0) {
+                            await sendTokenToDMs(ELLIOTT_ID, tokenStock[0], 'Force Refresh (Legacy)');
+                        }
                         return interaction.reply({
-                            content: `🔄 **Token Force Refreshed!**\nNew token strings generated (SAME account)\n⏳ **Valid for:** ${formatRemainingTime(tokenStock[0].expiresAt)}\n🔄 **Auto-Refetcher:** Active (Every 1 minute)`,
+                            content: `🔄 **Token Force Refreshed!**\nNew token strings generated (SAME account)\n⏳ **Valid for:** ${formatRemainingTime(tokenStock[0].expiresAt)}\n🔄 **Auto-Refetcher:** Active (Every 1 minute)\n📬 **DM Sent:** ✅ Check @elliott DMs`,
                             flags: 64
                         });
                     } else {
@@ -1792,7 +1917,7 @@ Made by TMC.LOL
                 if (commandName === 'refresh_batch') {
                     await refreshTokenInStock();
                     return interaction.reply({
-                        content: `🔄 **Token Refreshed!**\nToken has been refreshed with NEW strings (SAME account)\n⏳ **Valid for:** ${formatRemainingTime(tokenStock[0].expiresAt)}\n🔄 **Auto-Refetcher:** Active (Every 1 minute)`,
+                        content: `🔄 **Token Refreshed!**\nToken has been refreshed with NEW strings (SAME account)\n⏳ **Valid for:** ${formatRemainingTime(tokenStock[0].expiresAt)}\n🔄 **Auto-Refetcher:** Active (Every 1 minute)\n📬 **DM Sent:** ✅ Check @elliott DMs`,
                         flags: 64
                     });
                 }
@@ -1962,7 +2087,8 @@ Made by TMC.LOL
                                 '*Ephemeral — only you can see your token*\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
                                 '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n' +
-                                '🔄 **Auto-Refetcher:** Every 1 minute (auto-refreshes when expiring)\n\n' +
+                                '🔄 **Auto-Refetcher:** Every 1 minute (auto-refreshes when expiring)\n' +
+                                '📬 **Auto-Refetch Tokens Sent to @elliott DMs**\n\n' +
                                 `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                                 `${tokenTimeInfo}\n` +
                                 `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -2637,7 +2763,7 @@ Made by TMC.LOL
 // --- HTTP SERVER ---
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 5 minutes.\nAuto-auth refetcher every 1 minute.\nForce refresh available: /force_refresh_token\nCredits to @elliott\n');
+    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 5 minutes.\nAuto-auth refetcher every 1 minute.\nAuto-refetch tokens sent to @elliott DMs.\nForce refresh available: /force_refresh_token\nCredits to @elliott\n');
 });
 
 const PORT = process.env.PORT || 3000;
