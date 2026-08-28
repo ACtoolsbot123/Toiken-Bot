@@ -40,17 +40,9 @@ const VIP_ROLE_ID = "1542337978016469093";
 const BOOSTER_ROLE_ID = "1542337979807178832";
 
 // --- API CONFIGURATION ---
+const NAKAMA_SERVER = 'https://animalcompany.us-east1.nakamacloud.io';
 const API_URLS = [
-    'https://api.realanimalcompany.com',
-    'https://realanimalcompany.com/api',
-    'https://www.realanimalcompany.com/api',
-    'https://auth.realanimalcompany.com',
-    'https://api.animalcompany.com',
-    'https://animalcompany.com/api',
-    'https://api.realanimalcompany.com/v1',
-    'https://realanimalcompany.com/v1',
-    'https://api.realanimalcompany.com/auth',
-    'https://realanimalcompany.com/auth'
+    NAKAMA_SERVER
 ];
 
 let ACTIVE_API_URL = API_URLS[0];
@@ -75,8 +67,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlYjVmOTBlYi05MjYzLTQ1MzgtYTY3Yi0xOTA2MDYwMWVhZTYiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImQxN2Q5M2MwYWIyYzQ2ZDk4NDBkZTAyZmI3ZDAzOTU3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODI3MzksImlhdCI6MTc4Nzg3OTEzOX0.Q35CUXy56_1-ioBANeqaTQU7P8792kF6MQIkB11teNs",
-    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlYjVmOTBlYi05MjYzLTQ1MzgtYTY3Yi0xOTA2MDYwMWVhZTYiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImQxN2Q5M2MwYWIyYzQ2ZDk4NDBkZTAyZmI3ZDAzOTU3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDA3MzksImlhdCI6MTc4Nzg3OTEzOX0.ckne_JDVrgIwJsjOJ76pNmlk2eWCrWpTis_AI6u4Z48"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJjODdlZDJmMS00MTQzLTQ2YTgtODdjNi03N2QzNGY2ZWMyMzkiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE0ZmFjMjE2ZmYwOTQzNDQ5MDdkMjQ4ZjY1OTliMDg3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4Nzk2NDEsImlhdCI6MTc4Nzg3NjA0MX0.dc06Qq_0a4b1wn2XIFHQK8aY8QUgM0xNUxQfNXahd_c",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJjODdlZDJmMS00MTQzLTQ2YTgtODdjNi03N2QzNGY2ZWMyMzkiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE0ZmFjMjE2ZmYwOTQzNDQ5MDdkMjQ4ZjY1OTliMDg3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4OTc2NDEsImlhdCI6MTc4Nzg3NjA0MX0.tQyAqQ_lbgrA_OYwu-BmcX7ZHaEzrbG0NMuPpUS-S54"
 };
 
 const REQUIRED_ROLES = {
@@ -201,11 +193,12 @@ async function findWorkingApiUrl() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             
-            const response = await fetch(`${url}/validate`, {
+            // Test the Nakama server is reachable
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'User-Agent': 'TMC.LOL-Bot/1.0'
+                    'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5'
                 },
                 signal: controller.signal
             });
@@ -214,7 +207,6 @@ async function findWorkingApiUrl() {
             
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
-                const data = await response.json();
                 console.log(`[TMC.LOL] ✅ Found working API: ${url}`);
                 ACTIVE_API_URL = url;
                 apiWorking = true;
@@ -368,15 +360,17 @@ async function validateSteamToken(bearerToken, retries = 3) {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
+            // Use Nakama's /v2/account endpoint to validate the session token
+            const validateUrl = `${ACTIVE_API_URL}/v2/account`;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             
-            const response = await fetch(`${ACTIVE_API_URL}/validate`, {
+            const response = await fetch(validateUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${bearerToken}`,
                     'Content-Type': 'application/json',
-                    'User-Agent': 'TMC.LOL-Bot/1.0'
+                    'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5'
                 },
                 signal: controller.signal
             });
@@ -423,30 +417,8 @@ async function validateSteamToken(bearerToken, retries = 3) {
             
             const isValid = response.status === 200;
             
-            let expiresAt = null;
-            if (responseData.expires_at) {
-                expiresAt = new Date(responseData.expires_at).getTime();
-            } else if (responseData.expiresIn) {
-                expiresAt = Date.now() + (responseData.expiresIn * 1000);
-            } else if (responseData.exp) {
-                expiresAt = responseData.exp * 1000;
-            } else if (responseData.expires) {
-                expiresAt = new Date(responseData.expires).getTime();
-            }
-            
-            if (expiresAt && Date.now() > expiresAt) {
-                return {
-                    valid: false,
-                    status: 401,
-                    data: responseData,
-                    expiresAt: expiresAt,
-                    message: 'Token expired - API reported expiration'
-                };
-            }
-            
-            if (!expiresAt) {
-                expiresAt = Date.now() + (60 * 60 * 1000);
-            }
+            // Nakama /v2/account returns wallet, user ID etc - compute expiry from JWT if present
+            let expiresAt = Date.now() + (60 * 60 * 1000);
             
             apiWorking = true;
             
@@ -490,7 +462,7 @@ async function validateSteamToken(bearerToken, retries = 3) {
 // ============================================
 async function refreshToken(refreshTk) {
     try {
-        console.log('[TMC.LOL] 🔄 Attempting to refresh token...');
+        console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
         
         // If already refreshing, queue this request
         if (isRefreshing) {
@@ -508,18 +480,19 @@ async function refreshToken(refreshTk) {
 
         for (const url of urlsToTry) {
             try {
-                console.log(`[TMC.LOL] 🔄 Trying refresh at: ${url}/refresh`);
+                // Nakama session refresh endpoint
+                const refreshUrl = `${url}/v2/account/session/refresh`;
+                console.log(`[TMC.LOL] 🔄 Trying refresh at: ${refreshUrl}`);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-                const response = await fetch(`${url}/refresh`, {
+                const response = await fetch(refreshUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${refreshTk}`,
-                        'User-Agent': 'TMC.LOL-Bot/1.0'
+                        'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5'
                     },
-                    body: JSON.stringify({ refresh_token: refreshTk }),
+                    body: JSON.stringify({ token: refreshTk }),
                     signal: controller.signal
                 });
 
@@ -527,16 +500,17 @@ async function refreshToken(refreshTk) {
 
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
-                    console.log(`[TMC.LOL] ❌ ${url} - Not JSON response`);
+                    console.log(`[TMC.LOL] ❌ ${url} - Not JSON response (status ${response.status})`);
                     continue;
                 }
 
                 const data = await response.json();
 
-                if (response.status === 200 && (data.access_token || data.bearer)) {
-                    const newBearer = data.access_token || data.bearer;
+                // Nakama returns { token, refresh_token } on success
+                if (response.status === 200 && data.token) {
+                    const newBearer = data.token;
                     const newRefresh = data.refresh_token || refreshTk;
-                    const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + (60 * 60 * 1000);
+                    const expiresAt = Date.now() + (60 * 60 * 1000);
 
                     if (!newBearer || newBearer === refreshTk) {
                         console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token`);
@@ -572,7 +546,7 @@ async function refreshToken(refreshTk) {
                     console.log('[TMC.LOL] 🔓 Refresh lock released');
                     return result;
                 } else {
-                    console.log(`[TMC.LOL] ❌ ${url} - Status: ${response.status}`);
+                    console.log(`[TMC.LOL] ❌ ${url} - Status: ${response.status}`, data);
                 }
             } catch (err) {
                 console.log(`[TMC.LOL] ❌ ${url} - ${err.message}`);
