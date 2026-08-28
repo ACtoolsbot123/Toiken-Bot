@@ -41,12 +41,18 @@ const BOOSTER_ROLE_ID = "1542337979807178832";
 
 // --- API CONFIGURATION ---
 const NAKAMA_SERVER = 'https://animalcompany.us-east1.nakamacloud.io';
+const NAKAMA_SERVER_KEY = process.env.NAKAMA_SERVER_KEY || 'defaultkey';
 const API_URLS = [
     NAKAMA_SERVER
 ];
 
 let ACTIVE_API_URL = API_URLS[0];
 let apiWorking = false;
+
+const hasServerKey = NAKAMA_SERVER_KEY && NAKAMA_SERVER_KEY.length > 0;
+if (!hasServerKey) {
+    console.log('[TMC.LOL] ⚠️ NAKAMA_SERVER_KEY not set - token refresh will fail with "Server key required"');
+}
 
 // --- Token refresh queue system ---
 let isRefreshing = false;
@@ -67,8 +73,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlYjVmOTBlYi05MjYzLTQ1MzgtYTY3Yi0xOTA2MDYwMWVhZTYiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImQxN2Q5M2MwYWIyYzQ2ZDk4NDBkZTAyZmI3ZDAzOTU3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODI3MzksImlhdCI6MTc4Nzg3OTEzOX0.Q35CUXy56_1-ioBANeqaTQU7P8792kF6MQIkB11teNs",
-    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJlYjVmOTBlYi05MjYzLTQ1MzgtYTY3Yi0xOTA2MDYwMWVhZTYiLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImQxN2Q5M2MwYWIyYzQ2ZDk4NDBkZTAyZmI3ZDAzOTU3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDA3MzksImlhdCI6MTc4Nzg3OTEzOX0.ckne_JDVrgIwJsjOJ76pNmlk2eWCrWpTis_AI6u4Z48"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODYwNjYsImlhdCI6MTc4Nzg4MjQ2Nn0.NF6aT0wONv1E96uX-NPpTv2-V123H98_hH6_8EHwvbQ",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDQwNjYsImlhdCI6MTc4Nzg4MjQ2Nn0.45YTw42pd1ywnrig7HfQSQZeq0gbUqjR_ix9utrygS0"
 };
 
 const REQUIRED_ROLES = {
@@ -486,11 +492,14 @@ async function refreshToken(refreshTk) {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+                const serverKeyAuth = 'Basic ' + Buffer.from(NAKAMA_SERVER_KEY + ':').toString('base64');
+
                 const response = await fetch(refreshUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5'
+                        'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5',
+                        'Authorization': serverKeyAuth
                     },
                     body: JSON.stringify({ token: refreshTk }),
                     signal: controller.signal
