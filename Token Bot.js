@@ -554,8 +554,8 @@ async function refreshToken(refreshToken) {
                 expiresAt: expiresAt
             };
 
-            // Process the queue with the NEW token
-            processQueue(null, newBearer);
+            // Process the queue with the FULL result object so queued callers get the right shape
+            processQueue(null, result);
             isRefreshing = false;
             console.log('[TMC.LOL] 🔓 Refresh lock released');
             return result;
@@ -930,7 +930,7 @@ async function processTokenGeneration(interaction, tierName) {
         
         const tokenObj = tokenStock[0];
         
-        if (tokenObj.expiresAt && isTokenExpired(tokenObj)) {
+            if (tokenObj.expiresAt && isTokenExpired(tokenObj)) {
             const refreshResult = await refreshToken(tokenObj.refresh);
             if (refreshResult.success) {
                 tokenStock[0] = {
@@ -947,6 +947,7 @@ async function processTokenGeneration(interaction, tierName) {
                     expiresAt: Date.now() + (60 * 60 * 1000)
                 };
             }
+            tokenObj = tokenStock[0];
         }
         
         await interaction.editReply({
@@ -981,6 +982,7 @@ async function processTokenGeneration(interaction, tierName) {
                     expiresAt: Date.now() + (60 * 60 * 1000)
                 };
             }
+            tokenObj = tokenStock[0];
         }
         
         if (validationResult.expiresAt) {
@@ -1154,6 +1156,7 @@ client.on('interactionCreate', async interaction => {
                             expiresAt: Date.now() + (60 * 60 * 1000)
                         };
                     }
+                    tokenObj = tokenStock[0];
                 }
                 
                 const validationResult = await validateSteamToken(tokenObj.bearer);
@@ -1175,6 +1178,7 @@ client.on('interactionCreate', async interaction => {
                             expiresAt: Date.now() + (60 * 60 * 1000)
                         };
                     }
+                    tokenObj = tokenStock[0];
                 }
                 
                 if (validationResult.expiresAt) {
