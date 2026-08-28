@@ -73,8 +73,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODYwNjYsImlhdCI6MTc4Nzg4MjQ2Nn0.NF6aT0wONv1E96uX-NPpTv2-V123H98_hH6_8EHwvbQ",
-    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDQwNjYsImlhdCI6MTc4Nzg4MjQ2Nn0.45YTw42pd1ywnrig7HfQSQZeq0gbUqjR_ix9utrygS0"
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc4ODk3MTYsImlhdCI6MTc4Nzg4MjQ2Nn0.YMyZYTsRw7JrFvhQbVF0xukYYluW1G8Q6LrbmoQgCA8",
+    refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwY2M4YjZlOS03OTFiLTQyZTYtODU1YS0wNGNiYzA4MDcyYjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImE4ZjA1YjBlNDMyNDQ1ZWFhOTQ1OWFjOTM4MTk0MDQ3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5MDc3MTYsImlhdCI6MTc4Nzg4MjQ2Nn0.H5kGCD5TBLI7YYR5ve4vPodte59tEtgTq0nCy0oI7LU"
 };
 
 const REQUIRED_ROLES = {
@@ -1385,6 +1385,27 @@ Made by TMC.LOL
                 }
 
                 if (commandName === 'generator') {
+                    let tokenTimeInfo = '⏳ **Checking token...**';
+                    try {
+                        if (tokenStock.length > 0) {
+                            const currentToken = tokenStock[0];
+                            if (currentToken.expiresAt) {
+                                const remaining = formatRemainingTime(currentToken.expiresAt);
+                                const expiryDate = new Date(currentToken.expiresAt).toLocaleString();
+                                const isExpired = Date.now() > currentToken.expiresAt;
+                                tokenTimeInfo = isExpired
+                                    ? `🔴 **Token Status:** Expired\n⏰ **Expired at:** ${expiryDate}`
+                                    : `🟢 **Token Status:** Active\n⏳ **Expires at:** ${expiryDate}\n⏱️ **Time left:** ${remaining}`;
+                            } else {
+                                tokenTimeInfo = '⚠️ **Token Status:** Unknown expiry';
+                            }
+                        } else {
+                            tokenTimeInfo = '🔴 **Token Status:** No tokens in stock';
+                        }
+                    } catch (e) {
+                        tokenTimeInfo = '⚠️ **Token Status:** Could not determine';
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
                         .setDescription(
@@ -1394,6 +1415,9 @@ Made by TMC.LOL
                             '*Ephemeral — only you can see your token*\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
                             '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
+                            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                            `${tokenTimeInfo}\n` +
+                            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                             '👑 **Credits:** @elliott (1363240484818128926)\n' +
                             '**Made by TMC.LOL**'
                         )
@@ -1602,6 +1626,27 @@ Made by TMC.LOL
                     const subArg = options.getString('type');
 
                     if (subArg === 'generator') {
+                        let tokenTimeInfo = '⏳ **Checking token...**';
+                        try {
+                            if (tokenStock.length > 0) {
+                                const currentToken = tokenStock[0];
+                                if (currentToken.expiresAt) {
+                                    const remaining = formatRemainingTime(currentToken.expiresAt);
+                                    const expiryDate = new Date(currentToken.expiresAt).toLocaleString();
+                                    const isExpired = Date.now() > currentToken.expiresAt;
+                                    tokenTimeInfo = isExpired
+                                        ? `🔴 **Token Status:** Expired\n⏰ **Expired at:** ${expiryDate}`
+                                        : `🟢 **Token Status:** Active\n⏳ **Expires at:** ${expiryDate}\n⏱️ **Time left:** ${remaining}`;
+                                } else {
+                                    tokenTimeInfo = '⚠️ **Token Status:** Unknown expiry';
+                                }
+                            } else {
+                                tokenTimeInfo = '🔴 **Token Status:** No tokens in stock';
+                            }
+                        } catch (e) {
+                            tokenTimeInfo = '⚠️ **Token Status:** Could not determine';
+                        }
+
                         const embed = new EmbedBuilder()
                             .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
                             .setDescription(
@@ -1611,6 +1656,9 @@ Made by TMC.LOL
                                 '*Ephemeral — only you can see your token*\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
                                 '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
+                                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                                `${tokenTimeInfo}\n` +
+                                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                                 '👑 **Credits:** @elliott (1363240484818128926)\n' +
                                 '**Made by TMC.LOL**'
                             )
