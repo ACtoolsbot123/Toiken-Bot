@@ -2671,4 +2671,51 @@ server.listen(PORT, () => {
     console.log(`[TMC.LOL] HTTP server running on port ${PORT}`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// --- ERROR HANDLING FOR TOKEN LOGIN ---
+client.on('error', (error) => {
+    console.error('[TMC.LOL] ❌ Discord Client Error:', error);
+});
+
+client.on('warn', (warning) => {
+    console.warn('[TMC.LOL] ⚠️ Discord Client Warning:', warning);
+});
+
+// --- SHUTDOWN HANDLER ---
+process.on('unhandledRejection', (error) => {
+    console.error('[TMC.LOL] ❌ Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('[TMC.LOL] ❌ Uncaught Exception:', error);
+});
+
+// --- LOGIN WITH TOKEN ---
+console.log('[TMC.LOL] 🔑 Attempting to login with Discord token...');
+
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+
+if (!DISCORD_TOKEN) {
+    console.error('[TMC.LOL] ❌ CRITICAL ERROR: DISCORD_TOKEN environment variable is not set!');
+    console.error('[TMC.LOL] ❌ Please add DISCORD_TOKEN to your Render environment variables.');
+    process.exit(1);
+}
+
+if (DISCORD_TOKEN.length < 50) {
+    console.error('[TMC.LOL] ❌ CRITICAL ERROR: DISCORD_TOKEN appears to be invalid (too short).');
+    console.error(`[TMC.LOL] ❌ Token length: ${DISCORD_TOKEN.length} (should be ~70-100 characters)`);
+    process.exit(1);
+}
+
+console.log(`[TMC.LOL] 🔑 Token length: ${DISCORD_TOKEN.length} characters (valid format)`);
+console.log(`[TMC.LOL] 🔑 Token starts with: ${DISCORD_TOKEN.substring(0, 15)}...`);
+
+client.login(DISCORD_TOKEN).catch((err) => {
+    console.error('[TMC.LOL] ❌ Failed to login to Discord:', err.message);
+    console.error('[TMC.LOL] ❌ Full error:', err);
+    console.error('[TMC.LOL] 💡 Common issues:');
+    console.error('[TMC.LOL]   1. Invalid bot token (check Discord Developer Portal)');
+    console.error('[TMC.LOL]   2. Token format is wrong (should start with MTEx or OTE)');
+    console.error('[TMC.LOL]   3. Bot not invited to any server');
+    console.error('[TMC.LOL]   4. Privileged intents not enabled');
+    process.exit(1);
+});
