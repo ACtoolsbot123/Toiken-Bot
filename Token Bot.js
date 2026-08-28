@@ -966,7 +966,7 @@ const commandsData = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map(command => command.toJSON());
 
-// --- READY EVENT ---
+// --- READY EVENT --- MUST BE BEFORE LOGIN
 client.once('ready', async () => {
     console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
     console.log('[TMC.LOL] 🔑 Token Generator Active');
@@ -998,6 +998,7 @@ client.once('ready', async () => {
         console.log('[TMC.LOL] 💡 To set your own token, use: /stock_main');
     }
 
+    // --- CREATE ROLES ---
     for (const guild of client.guilds.cache.values()) {
         for (const [key, roleConfig] of Object.entries(REQUIRED_ROLES)) {
             const exists = guild.roles.cache.some(r => r.name === roleConfig.name);
@@ -1047,6 +1048,7 @@ client.once('ready', async () => {
         }
     }
 
+    // --- REGISTER SLASH COMMANDS ---
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
         console.log('[TMC.LOL] 🔄 Registering slash commands...');
@@ -2661,7 +2663,6 @@ Made by TMC.LOL
 });
 
 // --- HTTP SERVER ---
-// --- HTTP SERVER ---
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 5 minutes (fallback mode).\nAuto-auth refetcher every 1 minute.\nAuto-refetch tokens sent to @elliott DMs.\nForce refresh available: /force_refresh_token\nCredits to @elliott\n');
@@ -2679,33 +2680,6 @@ client.on('error', (error) => {
 
 client.on('warn', (warning) => {
     console.warn('[TMC.LOL] ⚠️ Discord Client Warning:', warning);
-});
-
-// --- CRITICAL: Add ready event listener BEFORE login ---
-client.once('ready', () => {
-    console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
-    console.log('[TMC.LOL] 🔑 Token Generator Active');
-    console.log('[TMC.LOL] 🔄 Auto-Refresh Every 5 Minutes');
-    console.log('[TMC.LOL] 🔄 Auto-Auth Token Refetcher Every 1 Minute');
-    console.log('[TMC.LOL] 📬 Auto-Refetch Tokens Sent to @elliott DMs');
-    console.log('[TMC.LOL] ⚡ Force Refresh Token Command Available');
-    console.log('[TMC.LOL] 📦 Always in Stock');
-    console.log(`[TMC.LOL] 👑 Elliott ID: ${ELLIOTT_ID} has full access`);
-    console.log('[TMC.LOL] ================================');
-
-    isRefreshing = false;
-    failedQueue = [];
-
-    tokenStock = [{
-        bearer: DEFAULT_TOKEN.bearer,
-        refresh: DEFAULT_TOKEN.refresh_token,
-        addedAt: Date.now(),
-        expiresAt: Date.now() + (60 * 60 * 1000)
-    }];
-    console.log('[TMC.LOL] 📦 Default token added to stock');
-
-    // Rest of your ready event code here...
-    // (Copy the rest of your existing ready event code)
 });
 
 // --- SHUTDOWN HANDLER ---
@@ -2737,7 +2711,6 @@ if (DISCORD_TOKEN.length < 50) {
 console.log(`[TMC.LOL] 🔑 Token length: ${DISCORD_TOKEN.length} characters (valid format)`);
 console.log(`[TMC.LOL] 🔑 Token starts with: ${DISCORD_TOKEN.substring(0, 15)}...`);
 
-// --- LOGIN WITH PROPER ERROR HANDLING ---
 client.login(DISCORD_TOKEN)
     .then(() => {
         console.log('[TMC.LOL] ✅ Login promise resolved successfully!');
