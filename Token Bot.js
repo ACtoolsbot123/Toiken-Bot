@@ -2456,14 +2456,60 @@ Made by TMC.LOL
 });
 
 // --- HTTP SERVER ---
+
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 1 minute.\nTokens NEVER expire!\nCredits to @elliott\n');
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
     console.log(`[TMC.LOL] HTTP server running on port ${PORT}`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// --- LOGIN WITH PROPER ERROR HANDLING AND RETRY ---
+console.log('[TMC.LOL] 🔑 Attempting to login to Discord...');
+
+if (!process.env.DISCORD_TOKEN) {
+    console.error('[TMC.LOL] ❌ DISCORD_TOKEN environment variable is NOT set!');
+    console.error('[TMC.LOL] ❌ Please add it in Render dashboard → Environment');
+} else {
+    console.log(`[TMC.LOL] ✅ DISCORD_TOKEN is set (length: ${process.env.DISCORD_TOKEN.length})`);
+    
+    // Add login with timeout
+    const loginPromise = client.login(process.env.DISCORD_TOKEN);
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
+    });
+
+    Promise.race([loginPromise, timeoutPromise])
+        .then(() => {
+            console.log('[TMC.LOL] ✅ Discord login successful!');
+        })
+        .catch(err => {
+            console.error('[TMC.LOL] ❌ Discord login FAILED!');
+            console.error('[TMC.LOL] ❌ Error:', err.message);
+            
+            if (err.message.includes('token')) {
+                console.error('[TMC.LOL] 💡 Your bot token is invalid or expired.');
+                console.error('[TMC.LOL] 💡 Regenerate it in Discord Developer Portal and update on Render.');
+            }
+            if (err.message.includes('intent')) {
+                console.error('[TMC.LOL] 💡 Enable privileged intents in Discord Developer Portal.');
+                console.error('[TMC.LOL] 💡 Go to your app → Bot → Privileged Gateway Intents.');
+            }
+            if (err.message.includes('timeout')) {
+                console.error('[TMC.LOL] 💡 Login timed out. Check if your bot can access Discord API.');
+                console.error('[TMC.LOL] 💡 Try using Node.js version 20.x instead of 26.x.');
+            }
+        });
+}
+
+// Keep the process alive
+process.on('unhandledRejection', (reason) => {
+    console.error('[TMC.LOL] Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[TMC.LOL] Uncaught Exception:', err);
+});
