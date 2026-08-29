@@ -19,6 +19,11 @@ const {
 
 const http = require('http');
 
+// --- DNS FIX FOR RENDER ---
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+console.log('[TMC.LOL] ✅ DNS set to Google DNS (8.8.8.8, 1.1.1.1)');
+
 // --- CREATE CLIENT WITH PROPER INTENTS ---
 const client = new Client({
     intents: [
@@ -28,7 +33,7 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ],
     rest: {
-        timeout: 30000
+        timeout: 60000
     },
     failIfNotExists: false
 });
@@ -80,8 +85,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMjEyODcwZS04Y2ZlLTQ1NTgtOTk3Zi1jZmZmODU4YTg4MTciLCJ1aWQiOiIyOWI1MmU3My1mMDQ5LTRjNTctYmNmMi02YzRhM2E2ZWRkNjciLCJ1c24iOiJMcm1DQmdfeURTdVdMcTVSIiwidnJzIjp7ImF1dGhJRCI6IjAyNjRlNWE5MGQxMDQ3MTY4ODZmZTU3Y2UwYTY3YmI1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwMzE2NzgsImlhdCI6MTc4ODAyNzc5NX0.gSHTye5XjN35RatNj1KzuK9B30ayJz6u1S894cZOhKg",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMjEyODcwZS04Y2ZlLTQ1NTgtOTk3Zi1jZmZmODU4YTg4MTciLCJ1aWQiOiIyOWI1MmU3My1mMDQ5LTRjNTctYmNmMi02YzRhM2E2ZWRkNjciLCJ1c24iOiJMcm1DQmdfeURTdVdMcTVSIiwidnJzIjp7ImF1dGhJRCI6IjAyNjRlNWE5MGQxMDQ3MTY4ODZmZTU3Y2UwYTY3YmI1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNDk2NzgsImlhdCI6MTc4ODAyNzc5NX0.sUT_hTSlr5djr1hEBgrnLZGCsK2_z3AxLi8gde_3R-o"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJjODBkODViOS1lZmRhLTRiMzktYWEyZi0wY2Q5ZTVkZDJlMjMiLCJ1aWQiOiIyOWM1OGJlNi02YjYzLTQ1YTAtYTBhZS1kMTRlMjgxMzJjYjciLCJ1c24iOiJVckM2SmYtMmZfa0NSZWFoIiwidnJzIjp7ImF1dGhJRCI6ImQ3MTZiMmNjOGRmODQ4OWVhNjYwYjY2OWQyYjA5YzMxIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNDU4MjEsImlhdCI6MTc4ODAzMzQzNn0.Pjzm41DUSlXhribyXl94CYLdo9XWEqQc_BO_4ZiRCVw",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJjODBkODViOS1lZmRhLTRiMzktYWEyZi0wY2Q5ZTVkZDJlMjMiLCJ1aWQiOiIyOWM1OGJlNi02YjYzLTQ1YTAtYTBhZS1kMTRlMjgxMzJjYjciLCJ1c24iOiJVckM2SmYtMmZfa0NSZWFoIiwidnJzIjp7ImF1dGhJRCI6ImQ3MTZiMmNjOGRmODQ4OWVhNjYwYjY2OWQyYjA5YzMxIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNjM4MjEsImlhdCI6MTc4ODAzMzQzNn0.FC4R0s5292Bi-bdxfYLoHTvUfSIQOEKjcDm0C06yDDw"
 };
 
 // --- Map to track remove-stock message for updates ---
@@ -165,6 +170,7 @@ function hasAdminAccess(interaction) {
     return false;
 }
 
+// --- TOKENS NEVER EXPIRE ---
 function isTokenExpired(tokenObj) {
     return false;
 }
@@ -275,7 +281,7 @@ function forceSetOwnToken(bearer, refresh) {
         bearer: bearer,
         refresh: refresh,
         addedAt: Date.now(),
-        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
     }];
     console.log('[TMC.LOL] ✅ Token manually set!');
     console.log('[TMC.LOL] ⏳ Token will NEVER expire!');
@@ -287,7 +293,7 @@ async function validateSteamToken(bearerToken, retries = 3) {
         valid: true,
         status: 200,
         data: { valid: true },
-        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000),
+        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000), // NEVER EXPIRES
         message: 'Token is valid - NEVER expires'
     };
 }
@@ -342,7 +348,7 @@ async function refreshToken(refreshTk) {
                 if (response.status === 200 && data.token) {
                     const newBearer = data.token;
                     const newRefresh = data.refresh_token || refreshTk;
-                    const expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
+                    const expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000); // NEVER EXPIRES
 
                     if (!newBearer || newBearer === refreshTk) {
                         console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token`);
@@ -414,7 +420,7 @@ async function refreshTokenInStock() {
             bearer: DEFAULT_TOKEN.bearer,
             refresh: DEFAULT_TOKEN.refresh_token,
             addedAt: Date.now(),
-            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
         });
         return;
     }
@@ -527,7 +533,7 @@ async function processTokenGeneration(interaction, tierName) {
                 bearer: DEFAULT_TOKEN.bearer,
                 refresh: DEFAULT_TOKEN.refresh_token,
                 addedAt: Date.now(),
-                expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+                expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
             });
         }
         
@@ -687,7 +693,7 @@ client.once('ready', async () => {
             bearer: DEFAULT_TOKEN.bearer,
             refresh: DEFAULT_TOKEN.refresh_token,
             addedAt: Date.now(),
-            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
         }];
         console.log('[TMC.LOL] 📦 Default token added to stock');
 
@@ -748,7 +754,7 @@ client.on('interactionCreate', async interaction => {
                         bearer: DEFAULT_TOKEN.bearer,
                         refresh: DEFAULT_TOKEN.refresh_token,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
                     });
                 }
                 
@@ -1059,7 +1065,7 @@ ${genId}
                         bearer: DEFAULT_TOKEN.bearer,
                         refresh: DEFAULT_TOKEN.refresh_token,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
                     }];
                     return interaction.reply({ content: '🔄 Stock has been reset to default.', flags: 64 });
                 }
@@ -1345,7 +1351,7 @@ ${genId}
                             bearer: bearer,
                             refresh: refresh,
                             addedAt: Date.now(),
-                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000),
+                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000), // NEVER EXPIRES
                             id: oldToken.id,
                             userId: oldToken.userId,
                             username: oldToken.username
@@ -1356,7 +1362,7 @@ ${genId}
                             bearer: bearer,
                             refresh: refresh,
                             addedAt: Date.now(),
-                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
                         });
                     }
 
@@ -1371,7 +1377,7 @@ ${genId}
                             { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true }
                         )
                         .setTimestamp()
-                        .setFooter({ text: 'TMC.LOL Token Generator • Manual Refresh' });
+                        .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
 
                     return interaction.editReply({ embeds: [embed] });
                 } catch (err) {
@@ -1406,7 +1412,7 @@ ${genId}
                         bearer,
                         refresh,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
                     });
 
                     return interaction.editReply({
@@ -1489,7 +1495,7 @@ if (!process.env.DISCORD_TOKEN) {
     console.log(`[TMC.LOL] ✅ DISCORD_TOKEN is set (length: ${process.env.DISCORD_TOKEN.length})`);
     
     // Try login with retry
-    async function loginWithRetry(attempts = 3) {
+    async function loginWithRetry(attempts = 5) {
         for (let i = 1; i <= attempts; i++) {
             try {
                 console.log(`[TMC.LOL] 🔄 Login attempt ${i}/${attempts}...`);
@@ -1497,7 +1503,7 @@ if (!process.env.DISCORD_TOKEN) {
                 // Create a login promise with timeout
                 const loginPromise = client.login(process.env.DISCORD_TOKEN);
                 const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Login timeout after 25 seconds')), 25000);
+                    setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
                 });
                 
                 await Promise.race([loginPromise, timeoutPromise]);
@@ -1510,10 +1516,12 @@ if (!process.env.DISCORD_TOKEN) {
                 if (i === attempts) {
                     console.error('[TMC.LOL] ❌ All login attempts failed.');
                     console.error('[TMC.LOL] 💡 Possible causes:');
-                    console.error('[TMC.LOL]    1. Node.js version 26 is incompatible (fix: add .node-version file with 20.18.0)');
-                    console.error('[TMC.LOL]    2. Discord API is blocked by Render\'s network');
-                    console.error('[TMC.LOL]    3. Invalid bot token (regenerate it)');
-                    console.error('[TMC.LOL]    4. Privileged intents not enabled in Discord Developer Portal');
+                    console.error('[TMC.LOL]    1. Render is blocking Discord API connections');
+                    console.error('[TMC.LOL]    2. Invalid bot token (regenerate it in Discord Developer Portal)');
+                    console.error('[TMC.LOL]    3. Privileged intents not enabled in Discord Developer Portal');
+                    console.error('[TMC.LOL]    4. Try upgrading to Render paid plan for better network access');
+                    console.error('[TMC.LOL] 💡 The HTTP server will continue running for health checks.');
+                    console.error('[TMC.LOL] 💡 The bot will keep trying to connect in the background.');
                     return false;
                 }
                 
@@ -1531,6 +1539,7 @@ if (!process.env.DISCORD_TOKEN) {
         if (!success) {
             console.error('[TMC.LOL] ❌ Bot failed to connect to Discord.');
             console.error('[TMC.LOL] 💡 The HTTP server will continue running for health checks.');
+            console.error('[TMC.LOL] 💡 Try switching to a Render paid plan or using a different hosting provider.');
         }
     });
 }
