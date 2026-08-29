@@ -19,6 +19,7 @@ const {
 
 const http = require('http');
 
+// Create client with all required intents
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -59,8 +60,8 @@ let refreshInterval = null;
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI0MmU3OTUzNi1hMWIxLTQ1Y2YtYWNlYy03ZTZkZWIzNTE0NGIiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImJmY2FlNWUxMGRjNjRkNzhhYTQ0YTZmMWIxYTQ2MWI0IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNDE1NjYsImlhdCI6MTc4ODAzMzA5NX0.sFnKGXpo5wlvWf9g8s3W8UCx9rpBdPm8QeAb7e6JUJw",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI0MmU3OTUzNi1hMWIxLTQ1Y2YtYWNlYy03ZTZkZWIzNTE0NGIiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImJmY2FlNWUxMGRjNjRkNzhhYTQ0YTZmMWIxYTQ2MWI0IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNTk1NjYsImlhdCI6MTc4ODAzMzA5NX0.hlDXHUZbD5kte3ClyOvFY7l4CPFP0VOGrt1hAg2UX6U"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMjEyODcwZS04Y2ZlLTQ1NTgtOTk3Zi1jZmZmODU4YTg4MTciLCJ1aWQiOiIyOWI1MmU3My1mMDQ5LTRjNTctYmNmMi02YzRhM2E2ZWRkNjciLCJ1c24iOiJMcm1DQmdfeURTdVdMcTVSIiwidnJzIjp7ImF1dGhJRCI6IjAyNjRlNWE5MGQxMDQ3MTY4ODZmZTU3Y2UwYTY3YmI1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwMzE2NzgsImlhdCI6MTc4ODAyNzc5NX0.gSHTye5XjN35RatNj1KzuK9B30ayJz6u1S894cZOhKg",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMjEyODcwZS04Y2ZlLTQ1NTgtOTk3Zi1jZmZmODU4YTg4MTciLCJ1aWQiOiIyOWI1MmU3My1mMDQ5LTRjNTctYmNmMi02YzRhM2E2ZWRkNjciLCJ1c24iOiJMcm1DQmdfeURTdVdMcTVSIiwidnJzIjp7ImF1dGhJRCI6IjAyNjRlNWE5MGQxMDQ3MTY4ODZmZTU3Y2UwYTY3YmI1IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNDk2NzgsImlhdCI6MTc4ODAyNzc5NX0.sUT_hTSlr5djr1hEBgrnLZGCsK2_z3AxLi8gde_3R-o"
 };
 
 function generateGenerationId() {
@@ -577,6 +578,7 @@ client.once('ready', async () => {
         console.log('[TMC.LOL] 🔑 Token Generator Active');
         console.log('[TMC.LOL] 🔄 Auto-Refresh Every 1 Minute');
         console.log('[TMC.LOL] ⏳ Tokens NEVER expire!');
+        console.log(`[TMC.LOL] 👑 Connected to ${client.guilds.cache.size} server(s)`);
         console.log('[TMC.LOL] ================================');
 
         isRefreshing = false;
@@ -1115,6 +1117,14 @@ ${genId}
                     flags: 64
                 });
             }
+
+            if (interaction.customId === 'close_ticket_btn') {
+                if (!hasAdminAccess(interaction)) {
+                    return interaction.reply({ content: "❌ Only staff can close tickets.", flags: 64 });
+                }
+                await interaction.reply({ content: "🔒 Closing ticket..." });
+                setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+            }
         }
 
         if (interaction.isStringSelectMenu()) {
@@ -1222,15 +1232,13 @@ ${genId}
     }
 });
 
-// --- CLOSE TICKET BUTTON ---
-client.on('interactionCreate', async interaction => {
-    if (interaction.isButton() && interaction.customId === 'close_ticket_btn') {
-        if (!hasAdminAccess(interaction)) {
-            return interaction.reply({ content: "❌ Only staff can close tickets.", flags: 64 });
-        }
-        await interaction.reply({ content: "🔒 Closing ticket..." });
-        setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
-    }
+// --- ERROR HANDLING ---
+client.on('error', err => {
+    console.error('[TMC.LOL] Client error:', err);
+});
+
+client.on('disconnect', () => {
+    console.log('[TMC.LOL] Disconnected from Discord, attempting to reconnect...');
 });
 
 // --- HTTP SERVER ---
@@ -1239,12 +1247,49 @@ const server = http.createServer((req, res) => {
     res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 1 minute.\nTokens NEVER expire!\n');
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
     console.log(`[TMC.LOL] HTTP server running on port ${PORT}`);
 });
 
-// --- LOGIN ---
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error('[TMC.LOL] Failed to login:', err);
+// --- LOGIN WITH BETTER ERROR HANDLING ---
+console.log('[TMC.LOL] 🔑 Attempting to login to Discord...');
+console.log('[TMC.LOL] 📝 Checking environment variables...');
+
+if (!process.env.DISCORD_TOKEN) {
+    console.error('[TMC.LOL] ❌ DISCORD_TOKEN environment variable is NOT set!');
+    console.error('[TMC.LOL] ❌ Please add it in Render dashboard → Environment');
+    console.error('[TMC.LOL] ❌ The bot will NOT connect to Discord without this!');
+} else {
+    console.log(`[TMC.LOL] ✅ DISCORD_TOKEN is set (length: ${process.env.DISCORD_TOKEN.length})`);
+    console.log('[TMC.LOL] ✅ Attempting Discord login...');
+    
+    client.login(process.env.DISCORD_TOKEN)
+        .then(() => {
+            console.log('[TMC.LOL] ✅ Discord login successful!');
+        })
+        .catch(err => {
+            console.error('[TMC.LOL] ❌ Discord login FAILED!');
+            console.error('[TMC.LOL] ❌ Error message:', err.message);
+            console.error('[TMC.LOL] ❌ Full error:', err);
+            console.error('[TMC.LOL] ❌ This is why your bot is offline!');
+            
+            if (err.message.includes('token')) {
+                console.error('[TMC.LOL] 💡 Your bot token is invalid or expired.');
+                console.error('[TMC.LOL] 💡 Regenerate it in Discord Developer Portal and update it on Render.');
+            }
+            if (err.message.includes('intent')) {
+                console.error('[TMC.LOL] 💡 You need to enable privileged intents in Discord Developer Portal.');
+                console.error('[TMC.LOL] 💡 Go to your app → Bot → Privileged Gateway Intents.');
+            }
+        });
+}
+
+// Keep the process alive even if Discord login fails
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[TMC.LOL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[TMC.LOL] Uncaught Exception:', err);
 });
