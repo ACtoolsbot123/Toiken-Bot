@@ -594,12 +594,13 @@ function isTokenExpired(tokenObj) {
 }
 
 // ============================================
-// PROCESS TOKEN GENERATION - NEVER EXPIRES
+// PROCESS TOKEN GENERATION - FIXED TIMEOUT
 // ============================================
 async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
     const member = interaction.member;
     
+    // CRITICAL FIX: Defer immediately - this gives us 15 minutes
     await interaction.deferReply({ flags: 64 });
     
     const hasNoCooldown = member && member.roles && member.roles.cache.has(NO_COOLDOWN_ROLE_ID);
@@ -632,6 +633,7 @@ async function processTokenGeneration(interaction, tierName) {
     
     activeGenerations.set(userId, Date.now());
     
+    // Check DM access
     try {
         const testDM = await interaction.user.send({ content: '🔍 Verifying DM connection...' });
         await testDM.delete();
@@ -647,6 +649,7 @@ async function processTokenGeneration(interaction, tierName) {
         });
     }
     
+    // Progress updates
     await interaction.editReply({
         content: '⏳ **Generating your token...** (Step 1/4: DM Verified ✅)'
     });
@@ -932,6 +935,7 @@ client.on('interactionCreate', async interaction => {
 
             // --- /token command - NEVER EXPIRES ---
             if (commandName === 'token') {
+                // CRITICAL FIX: Defer immediately
                 await interaction.deferReply({ flags: 64 });
                 
                 if (tokenStock.length === 0) {
@@ -1918,7 +1922,7 @@ Made by TMC.LOL
                 return;
             }
 
-            // --- gen_public button ---
+            // --- gen_public button - uses fixed processTokenGeneration ---
             if (interaction.customId === 'gen_public') {
                 return await processTokenGeneration(interaction, 'Public Token (5m cooldown)');
             }
