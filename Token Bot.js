@@ -19,14 +19,19 @@ const {
 
 const http = require('http');
 
-// Create client with all required intents
+// --- CREATE CLIENT WITH DEBUG OPTIONS ---
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    // Add these options to help with connection issues
+    rest: {
+        timeout: 30000
+    },
+    failIfNotExists: false
 });
 
 // --- CONFIGURATION ---
@@ -1252,42 +1257,56 @@ server.listen(PORT, () => {
     console.log(`[TMC.LOL] HTTP server running on port ${PORT}`);
 });
 
-// --- LOGIN WITH BETTER ERROR HANDLING ---
+// --- LOGIN WITH TIMEOUT AND RETRY ---
 console.log('[TMC.LOL] 🔑 Attempting to login to Discord...');
 console.log('[TMC.LOL] 📝 Checking environment variables...');
 
 if (!process.env.DISCORD_TOKEN) {
     console.error('[TMC.LOL] ❌ DISCORD_TOKEN environment variable is NOT set!');
     console.error('[TMC.LOL] ❌ Please add it in Render dashboard → Environment');
-    console.error('[TMC.LOL] ❌ The bot will NOT connect to Discord without this!');
 } else {
     console.log(`[TMC.LOL] ✅ DISCORD_TOKEN is set (length: ${process.env.DISCORD_TOKEN.length})`);
-    console.log('[TMC.LOL] ✅ Attempting Discord login...');
-    
-    client.login(process.env.DISCORD_TOKEN)
-        .then(() => {
-            console.log('[TMC.LOL] ✅ Discord login successful!');
-        })
-        .catch(err => {
-            console.error('[TMC.LOL] ❌ Discord login FAILED!');
-            console.error('[TMC.LOL] ❌ Error message:', err.message);
-            console.error('[TMC.LOL] ❌ Full error:', err);
-            console.error('[TMC.LOL] ❌ This is why your bot is offline!');
-            
-            if (err.message.includes('token')) {
-                console.error('[TMC.LOL] 💡 Your bot token is invalid or expired.');
-                console.error('[TMC.LOL] 💡 Regenerate it in Discord Developer Portal and update it on Render.');
-            }
-            if (err.message.includes('intent')) {
-                console.error('[TMC.LOL] 💡 You need to enable privileged intents in Discord Developer Portal.');
-                console.error('[TMC.LOL] 💡 Go to your app → Bot → Privileged Gateway Intents.');
-            }
-        });
+    console.log('[TMC.LOL] ✅ Attempting Discord login with timeout...');
+
+    // Create a promise that rejects after 30 seconds
+    const loginTimeout = new Promise((resolve, reject) => {
+        setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
+    });
+
+    // Race the login against the timeout
+    Promise.race([
+        client.login(process.env.DISCORD_TOKEN),
+        loginTimeout
+    ])
+    .then(() => {
+        console.log('[TMC.LOL] ✅ Discord login successful!');
+    })
+    .catch(err => {
+        console.error('[TMC.LOL] ❌ Discord login FAILED!');
+        console.error('[TMC.LOL] ❌ Error message:', err.message);
+        console.error('[TMC.LOL] ❌ Full error:', err);
+        
+        if (err.message.includes('token')) {
+            console.error('[TMC.LOL] 💡 Your bot token is invalid or expired.');
+            console.error('[TMC.LOL] 💡 Go to Discord Developer Portal → Your App → Bot → Reset Token');
+            console.error('[TMC.LOL] 💡 Then update the DISCORD_TOKEN on Render.');
+        }
+        if (err.message.includes('intent') || err.message.includes('privileged')) {
+            console.error('[TMC.LOL] 💡 You need to enable privileged intents in Discord Developer Portal.');
+            console.error('[TMC.LOL] 💡 Go to your app → Bot → Privileged Gateway Intents.');
+            console.error('[TMC.LOL] 💡 Enable: SERVER MEMBERS INTENT and MESSAGE CONTENT INTENT');
+        }
+        if (err.message.includes('timeout')) {
+            console.error('[TMC.LOL] 💡 Login timed out. This could be a network issue.');
+            console.error('[TMC.LOL] 💡 Make sure your bot can access Discord API.');
+        }
+        console.error('[TMC.LOL] ❌ Bot will remain offline. Fix the issues above and redeploy.');
+    });
 }
 
-// Keep the process alive even if Discord login fails
+// Keep the process alive
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('[TMC.LOL] Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('[TMC.LOL] Unhandled Rejection:', reason);
 });
 
 process.on('uncaughtException', (err) => {
