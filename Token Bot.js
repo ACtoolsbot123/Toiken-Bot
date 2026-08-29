@@ -61,7 +61,6 @@ if (!hasServerKey) {
 // --- Token refresh queue system ---
 let isRefreshing = false;
 let failedQueue = [];
-let currentRefreshPromise = null;
 
 function processQueue(error, token = null) {
     failedQueue.forEach(prom => {
@@ -83,7 +82,6 @@ let DEFAULT_TOKEN = {
 // --- Map to track remove-stock message for updates ---
 const removeStockMessages = new Map();
 
-// --- Helper to generate a unique ID for a generation ---
 function generateGenerationId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let id = 'GEN-';
@@ -93,7 +91,6 @@ function generateGenerationId() {
     return id;
 }
 
-// --- Remove token by ID ---
 function removeTokenById(id) {
     const idx = tokenStock.findIndex(t => t.id === id);
     if (idx === -1) {
@@ -103,7 +100,6 @@ function removeTokenById(id) {
     return { success: true, message: `Token with ID \`${id}\` removed from stock. Remaining tokens: ${tokenStock.length}` };
 }
 
-// --- Remove ALL tokens with an ID ---
 function removeAllTokens() {
     const before = tokenStock.length;
     tokenStock = tokenStock.filter(t => !t.id);
@@ -214,7 +210,6 @@ function formatTimeAgo(timestamp) {
 }
 
 function formatRemainingTime(expiresAt) {
-    // NEVER EXPIRES
     return "NEVER EXPIRES";
 }
 
@@ -258,9 +253,6 @@ async function findWorkingApiUrl() {
     return API_URLS[0];
 }
 
-// ============================================
-// FORCE SET OWN TOKEN (BYPASS API)
-// ============================================
 function forceSetOwnToken(bearer, refresh) {
     DEFAULT_TOKEN.bearer = bearer;
     DEFAULT_TOKEN.refresh_token = refresh;
@@ -278,7 +270,6 @@ function forceSetOwnToken(bearer, refresh) {
 
 // --- TOKEN VALIDATION - ALWAYS RETURNS VALID ---
 async function validateSteamToken(bearerToken, retries = 3) {
-    // ALWAYS return valid - tokens NEVER expire
     return {
         valid: true,
         status: 200,
@@ -288,9 +279,7 @@ async function validateSteamToken(bearerToken, retries = 3) {
     };
 }
 
-// ============================================
-// TOKEN REFRESH SYSTEM WITH QUEUE
-// ============================================
+// --- TOKEN REFRESH SYSTEM ---
 async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
@@ -402,7 +391,7 @@ async function refreshToken(refreshTk) {
     }
 }
 
-// --- REFRESH TOKEN IN STOCK (Every 1 minute) ---
+// --- REFRESH TOKEN IN STOCK ---
 async function refreshTokenInStock() {
     console.log('[TMC.LOL] 🔄 Auto-refreshing token with NEW strings...');
     
@@ -449,7 +438,7 @@ async function refreshTokenInStock() {
     console.log(`[TMC.LOL] Next refresh in 1 minute...`);
 }
 
-// --- START AUTO-REFRESH (Every 1 minute) ---
+// --- START AUTO-REFRESH ---
 function startAutoRefresh() {
     if (refreshInterval) {
         clearInterval(refreshInterval);
@@ -481,114 +470,14 @@ function startAutoRefresh() {
             await findWorkingApiUrl();
         }
         await refreshTokenInStock();
-    }, 60 * 1000); // 1 MINUTE
+    }, 60 * 1000);
 }
-
-// --- SLASH COMMANDS ---
-const commandsData = [
-    new SlashCommandBuilder().setName('8ball').setDescription('Ask the magic 8ball a question').addStringOption(opt => opt.setName('question').setDescription('Your question').setRequired(true)),
-    new SlashCommandBuilder().setName('afk').setDescription('Set yourself as AFK with an optional reason').addStringOption(opt => opt.setName('reason').setDescription('AFK reason')).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('announce').setDescription('Post a formatted announcement embed to a channel').addChannelOption(opt => opt.setName('channel').setDescription('Target channel').setRequired(true)).addStringOption(opt => opt.setName('message').setDescription('Announcement content').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('autodelete').setDescription('Auto-delete messages in a channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('autorole').setDescription('Automatically give a role to new members').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('ban').setDescription('Ban a member from the server').addUserOption(opt => opt.setName('target').setDescription('Member to ban').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('blacklist').setDescription("Strip a member's roles and give them the Blacklisted role").addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('bumpreminder').setDescription('Set up bump reminders for Disboard').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('coinflip').setDescription('Flip a coin'),
-    new SlashCommandBuilder().setName('counting').setDescription('Set up or manage the counting channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('fakeconvo').setDescription('Generate a fake Discord conversation image').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('fakemessage').setDescription('Generate a fake Discord message image').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('generate-code').setDescription('Generates a unique supporter code for the redeem panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('giveall').setDescription('Give every member in the server a role').addRoleOption(opt => opt.setName('role').setDescription('Role to give').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('giveaway').setDescription('Manage giveaways').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('help').setDescription('List all available bot commands and panels'),
-    new SlashCommandBuilder().setName('info').setDescription('Get info about a user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('leaderboard').setDescription('View the server XP leaderboard'),
-    new SlashCommandBuilder().setName('level').setDescription('Check your level and XP'),
-    new SlashCommandBuilder().setName('levelset').setDescription("Set a member's level").addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addIntegerOption(opt => opt.setName('level').setDescription('Level').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('lock').setDescription("Lock this channel so members can't send messages").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('marco').setDescription('Marco...'),
-    new SlashCommandBuilder().setName('modmakerapply').setDescription('Apply to become a mod maker in this server').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('mute').setDescription('Toggle the Muted role on a member').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('ping').setDescription('Pong - checks bot latency'),
-    new SlashCommandBuilder().setName('poll').setDescription('Create a poll for members to vote on').addStringOption(opt => opt.setName('question').setDescription('Poll question').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('postroles').setDescription('Post the role list as formatted embeds').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('postrules').setDescription('Post all server rules as formatted embeds').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('purge').setDescription('Bulk delete messages in this channel').addIntegerOption(opt => opt.setName('amount').setDescription('Number of messages').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('reactionrole').setDescription('Set up reaction roles').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('roleadd').setDescription('Add a role to a member').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('roleremove').setDescription('Remove a role from a member').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('rps').setDescription('Play rock paper scissors against Queen Bee').addStringOption(opt => opt.setName('choice').setDescription('rock, paper, or scissors').setRequired(true).addChoices(
-        { name: 'Rock', value: 'rock' }, { name: 'Paper', value: 'paper' }, { name: 'Scissors', value: 'scissors' }
-    )),
-    new SlashCommandBuilder().setName('serverinfo').setDescription('Get info about this server'),
-    new SlashCommandBuilder().setName('setlogs').setDescription('Configure the logging channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
-    new SlashCommandBuilder()
-        .setName('setup-botlog')
-        .setDescription('Configure category-specific log channels for bot panels')
-        .addChannelOption(opt => opt.setName('channel').setDescription('Target log channel').setRequired(true))
-        .addStringOption(opt => opt.setName('category').setDescription('Log category').setRequired(true).addChoices(
-            { name: 'General / All Logs', value: 'general' },
-            { name: 'Generator Success Logs', value: 'generator_success' },
-            { name: 'Unauthorized Button / Cooldown Logs', value: 'generator_unauthorized' },
-            { name: 'Stock & Admin Actions', value: 'stock' }
-        ))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-    new SlashCommandBuilder().setName('slowmode').setDescription('Set slowmode in this channel').addIntegerOption(opt => opt.setName('seconds').setDescription('Seconds').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('starboard').setDescription('Set up or manage the starboard').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('status').setDescription("Set the bot's online status").addStringOption(opt => opt.setName('text').setDescription('Status text').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('suggest').setDescription('Submit a suggestion or set suggestions channel').addStringOption(opt => opt.setName('suggestion').setDescription('Your suggestion').setRequired(true)),
-    new SlashCommandBuilder().setName('ticketpanel').setDescription('Post the ticket-creation panel in this channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('timeout').setDescription('Timeout a member for a set number of minutes').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).addIntegerOption(opt => opt.setName('minutes').setDescription('Minutes').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('unlock').setDescription('Unlock this channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('warn').setDescription('Warn a member').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('warnings').setDescription("Check a member's warnings").addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('welcome').setDescription('Configure welcome messages for new members').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
-    new SlashCommandBuilder()
-        .setName('build')
-        .setDescription('Builds a full theme layout with panels and categorized community/gaming channels')
-        .addStringOption(opt => opt.setName('theme').setDescription('The theme/name for your server layout').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-    new SlashCommandBuilder().setName('token').setDescription('Generate a fresh token directly to your DMs'),
-    new SlashCommandBuilder().setName('stock').setDescription('Open form to add token stock').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('stock_main').setDescription('Set the main/default token for the bot').addStringOption(opt => opt.setName('bearer').setDescription('Bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Refresh token').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('generator').setDescription('Post clean generator panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('force_refresh').setDescription('Force refresh the current token').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('remove-stock').setDescription('Open interactive list to remove a token by selection (single page)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('reset-stock').setDescription('Reset stock to default token and clear all generation IDs').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('gen-codes').setDescription('List all active generation IDs with user info (single page)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('remove-token').setDescription('Remove a specific token by typing its ID (direct)').addStringOption(opt => opt.setName('id').setDescription('Generation ID (e.g., GEN-ABC123)').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('refresh_cooldown_all').setDescription('Reset token generation cooldown for everyone').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('refresh_cooldown_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('refresh_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('logs').setDescription('Set log channel').addChannelOption(opt => opt.setName('channel').setDescription('Log channel').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('servers').setDescription('List all servers the bot is currently in').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('refresh_batch').setDescription('Manually trigger auto-refresh of invalid tokens').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-    new SlashCommandBuilder().setName('panel')
-        .setDescription('Deploys interactive management panels')
-        .addStringOption(opt => opt.setName('type').setDescription('Panel type').setRequired(true).addChoices(
-            { name: 'Verify', value: 'verify' },
-            { name: 'Redeem', value: 'redeem' },
-            { name: 'Support', value: 'support' },
-            { name: 'Automod', value: 'automod' },
-            { name: 'Roles', value: 'roles' },
-            { name: 'Help Directory', value: 'help' },
-            { name: 'Generator', value: 'generator' }
-        ))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-].map(command => command.toJSON());
 
 function generateSupporterCode() {
     const randomNums = () => Math.floor(1000 + Math.random() * 9000);
     return `supporter-${randomNums()}-${randomNums()}-${randomNums()}`;
 }
 
-// Tokens NEVER expire
 function isTokenExpired(tokenObj) {
     return false;
 }
@@ -600,7 +489,7 @@ async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
     const member = interaction.member;
     
-    // CRITICAL FIX: Defer immediately - this gives us 15 minutes
+    // CRITICAL FIX: Defer immediately - gives 15 minutes
     await interaction.deferReply({ flags: 64 });
     
     const hasNoCooldown = member && member.roles && member.roles.cache.has(NO_COOLDOWN_ROLE_ID);
@@ -633,7 +522,6 @@ async function processTokenGeneration(interaction, tierName) {
     
     activeGenerations.set(userId, Date.now());
     
-    // Check DM access
     try {
         const testDM = await interaction.user.send({ content: '🔍 Verifying DM connection...' });
         await testDM.delete();
@@ -649,7 +537,6 @@ async function processTokenGeneration(interaction, tierName) {
         });
     }
     
-    // Progress updates
     await interaction.editReply({
         content: '⏳ **Generating your token...** (Step 1/4: DM Verified ✅)'
     });
@@ -671,7 +558,6 @@ async function processTokenGeneration(interaction, tierName) {
         
         let tokenObj = tokenStock[0];
         
-        // Always try to refresh
         const refreshResult = await refreshToken(tokenObj.refresh);
         if (refreshResult.success) {
             tokenObj = tokenStock[0];
@@ -681,7 +567,6 @@ async function processTokenGeneration(interaction, tierName) {
             content: '⏳ **Generating your token...** (Step 3/4: Finalizing)'
         });
         
-        // Always validate - NEVER fails
         const validationResult = await validateSteamToken(tokenObj.bearer);
         
         if (validationResult.expiresAt) {
@@ -791,6 +676,105 @@ Made by TMC.LOL
     }
 }
 
+// --- SLASH COMMANDS ---
+const commandsData = [
+    new SlashCommandBuilder().setName('8ball').setDescription('Ask the magic 8ball a question').addStringOption(opt => opt.setName('question').setDescription('Your question').setRequired(true)),
+    new SlashCommandBuilder().setName('afk').setDescription('Set yourself as AFK with an optional reason').addStringOption(opt => opt.setName('reason').setDescription('AFK reason')).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('announce').setDescription('Post a formatted announcement embed to a channel').addChannelOption(opt => opt.setName('channel').setDescription('Target channel').setRequired(true)).addStringOption(opt => opt.setName('message').setDescription('Announcement content').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('autodelete').setDescription('Auto-delete messages in a channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('autorole').setDescription('Automatically give a role to new members').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('ban').setDescription('Ban a member from the server').addUserOption(opt => opt.setName('target').setDescription('Member to ban').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('blacklist').setDescription("Strip a member's roles and give them the Blacklisted role").addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('bumpreminder').setDescription('Set up bump reminders for Disboard').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('coinflip').setDescription('Flip a coin'),
+    new SlashCommandBuilder().setName('counting').setDescription('Set up or manage the counting channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('fakeconvo').setDescription('Generate a fake Discord conversation image').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('fakemessage').setDescription('Generate a fake Discord message image').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('generate-code').setDescription('Generates a unique supporter code for the redeem panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('giveall').setDescription('Give every member in the server a role').addRoleOption(opt => opt.setName('role').setDescription('Role to give').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('giveaway').setDescription('Manage giveaways').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('help').setDescription('List all available bot commands and panels'),
+    new SlashCommandBuilder().setName('info').setDescription('Get info about a user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('leaderboard').setDescription('View the server XP leaderboard'),
+    new SlashCommandBuilder().setName('level').setDescription('Check your level and XP'),
+    new SlashCommandBuilder().setName('levelset').setDescription("Set a member's level").addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addIntegerOption(opt => opt.setName('level').setDescription('Level').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('lock').setDescription("Lock this channel so members can't send messages").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('marco').setDescription('Marco...'),
+    new SlashCommandBuilder().setName('modmakerapply').setDescription('Apply to become a mod maker in this server').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('mute').setDescription('Toggle the Muted role on a member').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('ping').setDescription('Pong - checks bot latency'),
+    new SlashCommandBuilder().setName('poll').setDescription('Create a poll for members to vote on').addStringOption(opt => opt.setName('question').setDescription('Poll question').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('postroles').setDescription('Post the role list as formatted embeds').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('postrules').setDescription('Post all server rules as formatted embeds').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('purge').setDescription('Bulk delete messages in this channel').addIntegerOption(opt => opt.setName('amount').setDescription('Number of messages').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('reactionrole').setDescription('Set up reaction roles').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('roleadd').setDescription('Add a role to a member').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('roleremove').setDescription('Remove a role from a member').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('rps').setDescription('Play rock paper scissors against Queen Bee').addStringOption(opt => opt.setName('choice').setDescription('rock, paper, or scissors').setRequired(true).addChoices(
+        { name: 'Rock', value: 'rock' }, { name: 'Paper', value: 'paper' }, { name: 'Scissors', value: 'scissors' }
+    )),
+    new SlashCommandBuilder().setName('serverinfo').setDescription('Get info about this server'),
+    new SlashCommandBuilder().setName('setlogs').setDescription('Configure the logging channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    
+    new SlashCommandBuilder()
+        .setName('setup-botlog')
+        .setDescription('Configure category-specific log channels for bot panels')
+        .addChannelOption(opt => opt.setName('channel').setDescription('Target log channel').setRequired(true))
+        .addStringOption(opt => opt.setName('category').setDescription('Log category').setRequired(true).addChoices(
+            { name: 'General / All Logs', value: 'general' },
+            { name: 'Generator Success Logs', value: 'generator_success' },
+            { name: 'Unauthorized Button / Cooldown Logs', value: 'generator_unauthorized' },
+            { name: 'Stock & Admin Actions', value: 'stock' }
+        ))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder().setName('slowmode').setDescription('Set slowmode in this channel').addIntegerOption(opt => opt.setName('seconds').setDescription('Seconds').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('starboard').setDescription('Set up or manage the starboard').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('status').setDescription("Set the bot's online status").addStringOption(opt => opt.setName('text').setDescription('Status text').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('suggest').setDescription('Submit a suggestion or set suggestions channel').addStringOption(opt => opt.setName('suggestion').setDescription('Your suggestion').setRequired(true)),
+    new SlashCommandBuilder().setName('ticketpanel').setDescription('Post the ticket-creation panel in this channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('timeout').setDescription('Timeout a member for a set number of minutes').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).addIntegerOption(opt => opt.setName('minutes').setDescription('Minutes').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('unlock').setDescription('Unlock this channel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('warn').setDescription('Warn a member').addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('warnings').setDescription("Check a member's warnings").addUserOption(opt => opt.setName('target').setDescription('Member').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('welcome').setDescription('Configure welcome messages for new members').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    
+    new SlashCommandBuilder()
+        .setName('build')
+        .setDescription('Builds a full theme layout with panels and categorized community/gaming channels')
+        .addStringOption(opt => opt.setName('theme').setDescription('The theme/name for your server layout').setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder().setName('token').setDescription('Generate a fresh token directly to your DMs'),
+    new SlashCommandBuilder().setName('stock').setDescription('Open form to add token stock').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('stock_main').setDescription('Set the main/default token for the bot').addStringOption(opt => opt.setName('bearer').setDescription('Bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Refresh token').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('generator').setDescription('Post clean generator panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('force_refresh').setDescription('Force refresh the current token').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('remove-stock').setDescription('Open interactive list to remove a token by selection (single page)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('reset-stock').setDescription('Reset stock to default token and clear all generation IDs').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('gen-codes').setDescription('List all active generation IDs with user info (single page)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('remove-token').setDescription('Remove a specific token by typing its ID (direct)').addStringOption(opt => opt.setName('id').setDescription('Generation ID (e.g., GEN-ABC123)').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('refresh_cooldown_all').setDescription('Reset token generation cooldown for everyone').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('refresh_cooldown_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('refresh_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('logs').setDescription('Set log channel').addChannelOption(opt => opt.setName('channel').setDescription('Log channel').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('servers').setDescription('List all servers the bot is currently in').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('refresh_batch').setDescription('Manually trigger auto-refresh of invalid tokens').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder().setName('panel')
+        .setDescription('Deploys interactive management panels')
+        .addStringOption(opt => opt.setName('type').setDescription('Panel type').setRequired(true).addChoices(
+            { name: 'Verify', value: 'verify' },
+            { name: 'Redeem', value: 'redeem' },
+            { name: 'Support', value: 'support' },
+            { name: 'Automod', value: 'automod' },
+            { name: 'Roles', value: 'roles' },
+            { name: 'Help Directory', value: 'help' },
+            { name: 'Generator', value: 'generator' }
+        ))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+].map(command => command.toJSON());
+
 // --- READY EVENT ---
 client.once('ready', async () => {
     console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
@@ -822,7 +806,6 @@ client.once('ready', async () => {
         console.log('[TMC.LOL] 💡 To set your own token, use: /stock_main');
     }
 
-    // Setup roles
     for (const guild of client.guilds.cache.values()) {
         for (const [key, roleConfig] of Object.entries(REQUIRED_ROLES)) {
             const exists = guild.roles.cache.some(r => r.name === roleConfig.name);
@@ -872,7 +855,6 @@ client.once('ready', async () => {
         }
     }
 
-    // Register slash commands
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
         console.log('[TMC.LOL] 🔄 Registering slash commands...');
@@ -894,7 +876,6 @@ client.on('interactionCreate', async interaction => {
         if (interaction.isChatInputCommand()) {
             const { commandName, options } = interaction;
 
-            // --- PUBLIC COMMANDS ---
             if (commandName === 'ping') {
                 return interaction.reply({ content: `🏓 Pong! Latency: \`${client.ws.ping}ms\``, flags: 64 });
             }
@@ -933,9 +914,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: `You chose **${userChoice}**, I chose **${botChoice}**. ${outcome}` });
             }
 
-            // --- /token command - NEVER EXPIRES ---
             if (commandName === 'token') {
-                // CRITICAL FIX: Defer immediately
                 await interaction.deferReply({ flags: 64 });
                 
                 if (tokenStock.length === 0) {
@@ -949,7 +928,6 @@ client.on('interactionCreate', async interaction => {
                 
                 let tokenObj = tokenStock[0];
                 
-                // Always try to refresh
                 const refreshResult = await refreshToken(tokenObj.refresh);
                 if (refreshResult.success) {
                     tokenObj = tokenStock[0];
@@ -1210,7 +1188,6 @@ Made by TMC.LOL
                     return interaction.reply({ embeds: [embed], components: [row, refreshRow] });
                 }
 
-                // --- /force_refresh command ---
                 if (commandName === 'force_refresh') {
                     await interaction.deferReply({ flags: 64 });
                     
@@ -1263,7 +1240,6 @@ Made by TMC.LOL
                     }
                 }
 
-                // --- remove-stock ---
                 if (commandName === 'remove-stock') {
                     const entries = tokenStock
                         .filter(t => t.id && t.id.length > 0)
@@ -1738,7 +1714,6 @@ Made by TMC.LOL
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            // --- Refresh Token Modal Button ---
             if (interaction.customId === 'refresh_token_modal') {
                 if (!hasAdminAccess(interaction)) {
                     return interaction.reply({ 
@@ -1777,7 +1752,6 @@ Made by TMC.LOL
                 return await interaction.showModal(modal);
             }
 
-            // --- Handle remove single token ---
             if (interaction.customId.startsWith('remove_')) {
                 const id = interaction.customId.replace('remove_', '');
                 const messageId = interaction.message.id;
@@ -1890,7 +1864,6 @@ Made by TMC.LOL
                 return;
             }
 
-            // --- Handle "Remove All Tokens" button ---
             if (interaction.customId === 'remove_all_tokens') {
                 if (!hasAdminAccess(interaction)) {
                     return interaction.reply({ content: `❌ You need admin permissions to remove all tokens.`, flags: 64 });
@@ -1922,12 +1895,10 @@ Made by TMC.LOL
                 return;
             }
 
-            // --- gen_public button - uses fixed processTokenGeneration ---
             if (interaction.customId === 'gen_public') {
                 return await processTokenGeneration(interaction, 'Public Token (5m cooldown)');
             }
 
-            // --- verify button ---
             if (interaction.customId === 'verify_btn') {
                 await interaction.deferReply({ flags: 64 });
 
@@ -1957,7 +1928,6 @@ Made by TMC.LOL
                 }
             }
 
-            // --- redeem button ---
             if (interaction.customId === 'redeem_btn') {
                 const modal = new ModalBuilder()
                     .setCustomId('redeem_modal')
@@ -1974,7 +1944,6 @@ Made by TMC.LOL
                 return await interaction.showModal(modal);
             }
 
-            // --- role announcements button ---
             if (interaction.customId === 'role_announcements') {
                 const role = interaction.guild.roles.cache.get(ANNOUNCEMENT_ROLE_ID);
                 if (!role) return interaction.reply({ content: "❌ Announcement role not configured.", flags: 64 });
@@ -1988,7 +1957,6 @@ Made by TMC.LOL
                 }
             }
 
-            // --- automod toggle button ---
             if (interaction.customId === 'automod_toggle') {
                 if (!hasAdminAccess(interaction)) {
                     return interaction.reply({ content: `❌ You need the <@&${ADMIN_ROLE_ID}> role or admin permissions.`, flags: 64 });
@@ -1996,7 +1964,6 @@ Made by TMC.LOL
                 return interaction.reply({ content: "🛡️ **Automod Security Matrix:** All parameters active.", flags: 64 });
             }
 
-            // --- close ticket button ---
             if (interaction.customId === 'close_ticket_btn') {
                 if (!hasAdminAccess(interaction)) {
                     return interaction.reply({ content: "❌ Only staff can close tickets.", flags: 64 });
@@ -2056,7 +2023,6 @@ Made by TMC.LOL
         }
 
         if (interaction.isModalSubmit()) {
-            // --- Refresh Token Modal Submit ---
             if (interaction.customId === 'refresh_token_modal_submit') {
                 try {
                     if (!hasAdminAccess(interaction)) {
