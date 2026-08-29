@@ -14,7 +14,7 @@ const {
     SlashCommandBuilder,
     REST,
     Routes,
-    AttachmentBuilder // FIX: Added AttachmentBuilder here
+    AttachmentBuilder
 } = require('discord.js');
 
 const http = require('http');
@@ -34,10 +34,13 @@ const SUPPORTER_ROLE_ID = "1529393418063581284";
 const ANNOUNCEMENT_ROLE_ID = "123456789012345678";
 const BOT_OWNER_ID = "1300117296844509227";
 const ELLIOTT_ID = "1363240484818128926";
+const NO_COOLDOWN_ROLE_ID = "1542956153166626856";
 
 const BUYER_ROLE_ID = "1542337976917434428";
 const VIP_ROLE_ID = "1542337978016469093";
 const BOOSTER_ROLE_ID = "1542337979807178832";
+
+const GENERATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
 // --- API CONFIGURATION ---
 const NAKAMA_SERVER = 'https://animalcompany.us-east1.nakamacloud.io';
@@ -59,7 +62,6 @@ let isRefreshing = false;
 let failedQueue = [];
 let currentRefreshPromise = null;
 
-// Queue processor for pending requests
 function processQueue(error, token = null) {
     failedQueue.forEach(prom => {
         if (error) {
@@ -73,9 +75,33 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMWZiNzQ5Zi0wODgyLTRkNjctOTBmMC05ZDg4YmRiMDVjYTEiLCJ1aWQiOiI5ZTY5NGI4NC1lNjRiLTQzZmItYTMxMy00NDJlYWU0MjA0MTMiLCJ1c24iOiJPa3NEM0RuTVRudnpUTUZPIiwidnJzIjp7ImF1dGhJRCI6IjlmYjdiYjZlZDc2MDRkOGViZDA3NDUyZjY3MmZkYjlkIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiYjllNjAzYjE4NTU1NWIzNDk0ZjcyMjI2Y2ViYzRhOWI2MDNmNmE2MiJ9LCJleHAiOjE3ODc5NjE1NjUsImlhdCI6MTc4Nzk0MzQwOX0.ImNC3iSeWFaf-QDM2iu3SNWQAHYCXaDH18bYF7H3NS0",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJhMWZiNzQ5Zi0wODgyLTRkNjctOTBmMC05ZDg4YmRiMDVjYTEiLCJ1aWQiOiI5ZTY5NGI4NC1lNjRiLTQzZmItYTMxMy00NDJlYWU0MjA0MTMiLCJ1c24iOiJPa3NEM0RuTVRudnpUTUZPIiwidnJzIjp7ImF1dGhJRCI6IjlmYjdiYjZlZDc2MDRkOGViZDA3NDUyZjY3MmZkYjlkIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiYjllNjAzYjE4NTU1NWIzNDk0ZjcyMjI2Y2ViYzRhOWI2MDNmNmE2MiJ9LCJleHAiOjE3ODc5Nzk1NjUsImlhdCI6MTc4Nzk0MzQwOX0.HbzPOf_o5chqZretPfP2GG0-GSczhn6gSqo0IBJWRZA"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJiNjAyZTBhNy1mYTZlLTQxOTAtYTNjZS01YTc2ZWM5OThhNjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImY2MDRkNDRlY2E1MDRiNjNhNGZjMDhlZjVmZDFiZjY3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5NDk2NjYsImlhdCI6MTc4NzkwNDg1OX0.KLVTl2B8YAMOjEBT164qxa10VtVXLzz1iCRMgYVua-8",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJiNjAyZTBhNy1mYTZlLTQxOTAtYTNjZS01YTc2ZWM5OThhNjciLCJ1aWQiOiJjOGQ5MjMyNS1mNTE3LTQzOTQtYmYwMi1iODNiZTI5OTY4ODYiLCJ1c24iOiJvMHcyc0dGdDc1ZUtqZ0F3IiwidnJzIjp7ImF1dGhJRCI6ImY2MDRkNDRlY2E1MDRiNjNhNGZjMDhlZjVmZDFiZjY3IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODc5Njc2NjYsImlhdCI6MTc4NzkwNDg1OX0.9jskHSo5XXgQitiPVi-829pyIsrD-AaauxKbCM_e7Fs"
 };
+
+// --- Pagination state for /gen-codes and /remove-stock ---
+const genCodePages = new Map();
+const removeStockPages = new Map();
+
+// --- Helper to generate a unique ID for a generation ---
+function generateGenerationId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = 'GEN-';
+    for (let i = 0; i < 6; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return id;
+}
+
+// --- Remove token by ID (searches tokenStock directly) ---
+function removeTokenById(id) {
+    const idx = tokenStock.findIndex(t => t.id === id);
+    if (idx === -1) {
+        return { success: false, message: 'No token found with that generation ID.' };
+    }
+    tokenStock.splice(idx, 1);
+    return { success: true, message: `Token with ID \`${id}\` removed from stock. Remaining tokens: ${tokenStock.length}` };
+}
 
 const REQUIRED_ROLES = {
     BOOSTER: {
@@ -119,7 +145,6 @@ let refreshBatchCounter = 0;
 const activeGenerations = new Map();
 let refreshInterval = null;
 
-// --- CHECK IF USER IS ELLIOTT OR BOT OWNER ---
 function isPrivilegedUser(userId) {
     return userId === BOT_OWNER_ID || userId === ELLIOTT_ID;
 }
@@ -199,7 +224,6 @@ async function findWorkingApiUrl() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             
-            // Test the Nakama server is reachable
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -339,7 +363,6 @@ async function validateSteamToken(bearerToken, retries = 3) {
         };
     }
 
-    // If API is not working, trust the local JWT check
     if (!apiWorking) {
         console.log('[TMC.LOL] ⚠️ API not reachable - Using local JWT validation only');
         if (payload && payload.exp) {
@@ -366,7 +389,6 @@ async function validateSteamToken(bearerToken, retries = 3) {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-            // Use Nakama's /v2/account endpoint to validate the session token
             const validateUrl = `${ACTIVE_API_URL}/v2/account`;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -422,8 +444,6 @@ async function validateSteamToken(bearerToken, retries = 3) {
             }
             
             const isValid = response.status === 200;
-            
-            // Nakama /v2/account returns wallet, user ID etc - compute expiry from JWT if present
             let expiresAt = Date.now() + (60 * 60 * 1000);
             
             apiWorking = true;
@@ -470,7 +490,6 @@ async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
         
-        // If already refreshing, queue this request
         if (isRefreshing) {
             console.log('[TMC.LOL] ⏳ Refresh in progress, queuing...');
             return new Promise((resolve, reject) => {
@@ -481,12 +500,10 @@ async function refreshToken(refreshTk) {
         isRefreshing = true;
         console.log('[TMC.LOL] 🔒 Refresh lock acquired');
 
-        // Try ALL API URLs until one works
         const urlsToTry = apiWorking ? [ACTIVE_API_URL, ...API_URLS.filter(u => u !== ACTIVE_API_URL)] : [...API_URLS];
 
         for (const url of urlsToTry) {
             try {
-                // Nakama session refresh endpoint
                 const refreshUrl = `${url}/v2/account/session/refresh`;
                 console.log(`[TMC.LOL] 🔄 Trying refresh at: ${refreshUrl}`);
                 const controller = new AbortController();
@@ -515,7 +532,6 @@ async function refreshToken(refreshTk) {
 
                 const data = await response.json();
 
-                // Nakama returns { token, refresh_token } on success
                 if (response.status === 200 && data.token) {
                     const newBearer = data.token;
                     const newRefresh = data.refresh_token || refreshTk;
@@ -535,12 +551,17 @@ async function refreshToken(refreshTk) {
                     apiWorking = true;
 
                     if (tokenStock.length > 0) {
-                        tokenStock[0] = {
+                        const oldToken = tokenStock[0];
+                        const newToken = {
                             bearer: newBearer,
                             refresh: newRefresh,
                             addedAt: Date.now(),
-                            expiresAt: expiresAt
+                            expiresAt: expiresAt,
+                            id: oldToken.id,
+                            userId: oldToken.userId,
+                            username: oldToken.username
                         };
+                        tokenStock[0] = newToken;
                     }
 
                     const result = {
@@ -596,14 +617,12 @@ async function refreshTokenInStock() {
         const refreshResult = await refreshToken(tokenObj.refresh);
         
         if (refreshResult.success) {
-            // Token was already updated in the refresh function
             console.log('[TMC.LOL] ✅ Token refreshed with NEW strings!');
             console.log(`[TMC.LOL] New Bearer: ${tokenStock[0].bearer.substring(0, 50)}...`);
             console.log(`[TMC.LOL] Expires: ${new Date(tokenStock[0].expiresAt).toISOString()}`);
             console.log(`[TMC.LOL] ⏳ Lifespan extended to 1 hour!`);
         } else {
             console.log('[TMC.LOL] ❌ Refresh failed, keeping existing token');
-            // Keep existing token but extend expiry
             tokenStock[0].expiresAt = Date.now() + (60 * 60 * 1000);
             tokenStock[0].addedAt = Date.now();
         }
@@ -732,7 +751,10 @@ const commandsData = [
     new SlashCommandBuilder().setName('stock_main').setDescription('Set the main/default token for the bot').addStringOption(opt => opt.setName('bearer').setDescription('Bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Refresh token').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('generator').setDescription('Post clean generator panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('force_refresh').setDescription('Force refresh the current token').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('remove_stock').setDescription('Remove or clear tokens from stock queue').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('remove-stock').setDescription('Open interactive list to remove a token by selection').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('reset-stock').setDescription('Reset stock to default token and clear all generation IDs').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('gen-codes').setDescription('List all active generation IDs with user info (paginated)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('remove-token').setDescription('Remove a specific token by typing its ID (direct)').addStringOption(opt => opt.setName('id').setDescription('Generation ID (e.g., GEN-ABC123)').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('refresh_cooldown_all').setDescription('Reset token generation cooldown for everyone').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('refresh_cooldown_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('refresh_user').setDescription('Reset token generation cooldown for a specific user').addUserOption(opt => opt.setName('target').setDescription('User').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
@@ -861,9 +883,28 @@ function isTokenExpired(tokenObj) {
     return Date.now() > tokenObj.expiresAt;
 }
 
-// --- PROCESS TOKEN GENERATION WITH JSON FILE ---
+// --- PROCESS TOKEN GENERATION WITH JSON FILE (FIXED) ---
 async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
+    const member = interaction.member;
+    
+    const hasNoCooldown = member && member.roles && member.roles.cache.has(NO_COOLDOWN_ROLE_ID);
+    
+    if (!hasNoCooldown) {
+        const cooldownKey = `public_${userId}`;
+        if (cooldowns.has(cooldownKey)) {
+            const cooldownEnd = cooldowns.get(cooldownKey);
+            if (Date.now() < cooldownEnd) {
+                const remaining = cooldownEnd - Date.now();
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                return interaction.reply({
+                    content: `⏳ **Please wait ${minutes}m ${seconds}s** before generating another token. (5-minute cooldown)`,
+                    flags: 64
+                });
+            }
+        }
+    }
     
     if (activeGenerations.has(userId)) {
         const startTime = activeGenerations.get(userId);
@@ -915,26 +956,23 @@ async function processTokenGeneration(interaction, tierName) {
             content: '⏳ **Generating your token...** (Step 2/4: Checking token validity)'
         });
         
-        const tokenObj = tokenStock[0];
+        // Ensure we have the latest token from stock
+        let tokenObj = tokenStock[0];
         
-            if (tokenObj.expiresAt && isTokenExpired(tokenObj)) {
+        if (tokenObj.expiresAt && isTokenExpired(tokenObj)) {
             const refreshResult = await refreshToken(tokenObj.refresh);
             if (refreshResult.success) {
-                tokenStock[0] = {
-                    bearer: refreshResult.bearer,
-                    refresh: refreshResult.refresh,
-                    addedAt: Date.now(),
-                    expiresAt: refreshResult.expiresAt || Date.now() + (60 * 60 * 1000)
-                };
+                tokenObj = tokenStock[0]; // refreshToken updates tokenStock[0]
             } else {
+                // Refresh failed – create a new default token and reassign tokenObj
                 tokenStock[0] = {
                     bearer: DEFAULT_TOKEN.bearer,
                     refresh: DEFAULT_TOKEN.refresh_token,
                     addedAt: Date.now(),
                     expiresAt: Date.now() + (60 * 60 * 1000)
                 };
+                tokenObj = tokenStock[0];
             }
-            tokenObj = tokenStock[0];
         }
         
         await interaction.editReply({
@@ -946,13 +984,8 @@ async function processTokenGeneration(interaction, tierName) {
         if (!validationResult.valid) {
             const refreshResult = await refreshToken(tokenObj.refresh);
             if (refreshResult.success) {
-                tokenStock[0] = {
-                    bearer: refreshResult.bearer,
-                    refresh: refreshResult.refresh,
-                    addedAt: Date.now(),
-                    expiresAt: refreshResult.expiresAt || Date.now() + (60 * 60 * 1000)
-                };
-                const newValidation = await validateSteamToken(tokenStock[0].bearer);
+                tokenObj = tokenStock[0];
+                const newValidation = await validateSteamToken(tokenObj.bearer);
                 if (!newValidation.valid) {
                     activeGenerations.delete(userId);
                     return interaction.editReply({
@@ -962,6 +995,14 @@ async function processTokenGeneration(interaction, tierName) {
                     });
                 }
             } else {
+                // Refresh failed – create new default and set tokenObj
+                tokenStock[0] = {
+                    bearer: DEFAULT_TOKEN.bearer,
+                    refresh: DEFAULT_TOKEN.refresh_token,
+                    addedAt: Date.now(),
+                    expiresAt: Date.now() + (60 * 60 * 1000)
+                };
+                tokenObj = tokenStock[0];
                 activeGenerations.delete(userId);
                 return interaction.editReply({
                     content: '❌ **Token Expired!** Could not refresh the token.\n\n' +
@@ -969,6 +1010,7 @@ async function processTokenGeneration(interaction, tierName) {
                              '💡 The current tokens in stock are expired and no working API was found to refresh them.'
                 });
             }
+            // If we got here, tokenObj is the refreshed (valid) token
             tokenObj = tokenStock[0];
         }
         
@@ -976,8 +1018,19 @@ async function processTokenGeneration(interaction, tierName) {
             tokenObj.expiresAt = validationResult.expiresAt;
         }
         
+        // --- NOW we set the id on the token that is actually in the array ---
+        const genId = generateGenerationId();
+        tokenObj.id = genId;
+        tokenObj.userId = interaction.user.id;
+        tokenObj.username = interaction.user.tag;
+        
+        // Rotate: remove first, push the same object to the end
         tokenStock.shift();
         tokenStock.push(tokenObj);
+        
+        if (!hasNoCooldown) {
+            cooldowns.set(`public_${userId}`, Date.now() + GENERATION_COOLDOWN);
+        }
         
         await interaction.editReply({
             content: '⏳ **Generating your token...** (Step 4/4: Sending to DMs)'
@@ -989,7 +1042,8 @@ async function processTokenGeneration(interaction, tierName) {
                 bearer: tokenObj.bearer,
                 refresh_token: tokenObj.refresh,
                 expires_at: new Date(tokenObj.expiresAt).toISOString(),
-                added_at: new Date().toISOString()
+                added_at: new Date().toISOString(),
+                generation_id: genId
             },
             message: "Thank you for using TMC.LOL Token Generator!",
             credits: "@elliott (1363240484818128926)",
@@ -1000,7 +1054,6 @@ async function processTokenGeneration(interaction, tierName) {
         const jsonBuffer = Buffer.from(jsonString, 'utf-8');
         const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
         
-        // --- CREATE TEXT VERSION ---
         const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1009,6 +1062,9 @@ ${tokenObj.bearer}
 
 REFRESH TOKEN:
 ${tokenObj.refresh}
+
+GENERATION ID:
+${genId}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏳ Valid until: ${new Date(tokenObj.expiresAt).toLocaleString()}
@@ -1028,6 +1084,7 @@ Made by TMC.LOL
                 '📁 **Files attached:**\n' +
                 '• `token.json` - JSON format (for developers)\n' +
                 '• `token.txt` - Plain text format\n\n' +
+                `🆔 **Generation ID:** \`${genId}\`\n` +
                 `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n` +
                 '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
                 '👑 **Credits:** @elliott (1363240484818128926)\n' +
@@ -1043,14 +1100,14 @@ Made by TMC.LOL
             
             const successLog = new EmbedBuilder()
                 .setTitle('✅ Token Generated Successfully')
-                .setDescription(`User: <@${userId}> (${userId})\nTier: ${tierName}\nTokens in Rotation: ${tokenStock.length}`)
+                .setDescription(`User: <@${userId}> (${userId})\nTier: ${tierName}\nGeneration ID: ${genId}\nTokens in Rotation: ${tokenStock.length}`)
                 .setColor(0x2ECC71)
                 .setTimestamp();
             await sendBotLog(interaction.guild, 'generator_success', successLog);
             
             activeGenerations.delete(userId);
             return interaction.editReply({
-                content: `✅ **Token sent to your DMs!** (Tier: **${tierName}**)\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`
+                content: `✅ **Token sent to your DMs!** (Tier: **${tierName}**)\n🆔 **ID:** \`${genId}\`\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`
             });
         } catch (err) {
             console.error('[TMC.LOL] DM Error:', err);
@@ -1124,17 +1181,12 @@ client.on('interactionCreate', async interaction => {
                     });
                 }
                 
-                const tokenObj = tokenStock[0];
+                let tokenObj = tokenStock[0];
                 
                 if (tokenObj.expiresAt && isTokenExpired(tokenObj)) {
                     const refreshResult = await refreshToken(tokenObj.refresh);
                     if (refreshResult.success) {
-                        tokenStock[0] = {
-                            bearer: refreshResult.bearer,
-                            refresh: refreshResult.refresh,
-                            addedAt: Date.now(),
-                            expiresAt: refreshResult.expiresAt || Date.now() + (60 * 60 * 1000)
-                        };
+                        tokenObj = tokenStock[0];
                     } else {
                         tokenStock[0] = {
                             bearer: DEFAULT_TOKEN.bearer,
@@ -1142,8 +1194,8 @@ client.on('interactionCreate', async interaction => {
                             addedAt: Date.now(),
                             expiresAt: Date.now() + (60 * 60 * 1000)
                         };
+                        tokenObj = tokenStock[0];
                     }
-                    tokenObj = tokenStock[0];
                 }
                 
                 const validationResult = await validateSteamToken(tokenObj.bearer);
@@ -1151,12 +1203,7 @@ client.on('interactionCreate', async interaction => {
                 if (!validationResult.valid) {
                     const refreshResult = await refreshToken(tokenObj.refresh);
                     if (refreshResult.success) {
-                        tokenStock[0] = {
-                            bearer: refreshResult.bearer,
-                            refresh: refreshResult.refresh,
-                            addedAt: Date.now(),
-                            expiresAt: refreshResult.expiresAt || Date.now() + (60 * 60 * 1000)
-                        };
+                        tokenObj = tokenStock[0];
                     } else {
                         return interaction.reply({
                             content: '❌ **Token Expired!** Could not refresh the token.\n\n' +
@@ -1165,24 +1212,28 @@ client.on('interactionCreate', async interaction => {
                             flags: 64
                         });
                     }
-                    tokenObj = tokenStock[0];
                 }
                 
                 if (validationResult.expiresAt) {
                     tokenObj.expiresAt = validationResult.expiresAt;
                 }
                 
+                const genId = generateGenerationId();
+                tokenObj.id = genId;
+                tokenObj.userId = interaction.user.id;
+                tokenObj.username = interaction.user.tag;
+                
                 tokenStock.shift();
                 tokenStock.push(tokenObj);
                 
                 try {
-                    // --- CREATE JSON FILE ---
                     const tokenData = {
                         token: {
                             bearer: tokenObj.bearer,
                             refresh_token: tokenObj.refresh,
                             expires_at: new Date(tokenObj.expiresAt).toISOString(),
-                            added_at: new Date().toISOString()
+                            added_at: new Date().toISOString(),
+                            generation_id: genId
                         },
                         message: "Thank you for using TMC.LOL Token Generator!",
                         credits: "@elliott (1363240484818128926)",
@@ -1193,7 +1244,6 @@ client.on('interactionCreate', async interaction => {
                     const jsonBuffer = Buffer.from(jsonString, 'utf-8');
                     const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
                     
-                    // --- CREATE TEXT VERSION ---
                     const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1202,6 +1252,9 @@ ${tokenObj.bearer}
 
 REFRESH TOKEN:
 ${tokenObj.refresh}
+
+GENERATION ID:
+${genId}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏳ Valid until: ${new Date(tokenObj.expiresAt).toLocaleString()}
@@ -1221,6 +1274,7 @@ Made by TMC.LOL
                             '📁 **Files attached:**\n' +
                             '• `token.json` - JSON format (for developers)\n' +
                             '• `token.txt` - Plain text format\n\n' +
+                            `🆔 **Generation ID:** \`${genId}\`\n` +
                             `⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n` +
                             '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
                             '👑 **Credits:** @elliott (1363240484818128926)\n' +
@@ -1234,7 +1288,7 @@ Made by TMC.LOL
                     });
                     
                     return interaction.reply({
-                        content: `✅ **Token sent to your DMs!**\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`,
+                        content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n📁 **Files attached:** token.json & token.txt\n⏳ **Valid for:** ${formatRemainingTime(tokenObj.expiresAt)}\n📦 **Tokens remaining in stock:** ${tokenStock.length}`,
                         flags: 64
                     });
                 } catch (err) {
@@ -1272,6 +1326,10 @@ Made by TMC.LOL
                         { name: "⚡ `/panel generator`", value: "Deploys the Tokens by TMC.LOL Generator interface panel.", inline: false },
                         { name: "🔑 `/generate-code`", value: "Generates a unique `supporter-xxxx-xxxx-xxxx` code for the redeem panel.", inline: false },
                         { name: "🎮 `/token`", value: "Generate a fresh token directly to your DMs.", inline: false },
+                        { name: "📋 `/gen-codes`", value: "List all active generation IDs with user info (paginated).", inline: false },
+                        { name: "🗑️ `/remove-stock`", value: "Opens an interactive list to pick a token to remove (no typing).", inline: false },
+                        { name: "🗑️ `/remove-token [id]`", value: "Remove a specific token by ID (direct typing).", inline: false },
+                        { name: "🔄 `/reset-stock`", value: "Reset stock to default and clear all IDs (use with caution).", inline: false },
                         { name: "🔄 `/refresh_batch`", value: "Manually trigger auto-refresh of invalid tokens.", inline: false },
                         { name: "🔁 **Auto-Refresh**", value: "Token automatically refreshes every 5 minutes with NEW strings (SAME account)", inline: false },
                         { name: "📌 `/stock_main`", value: "Set the main/default token for the bot", inline: false },
@@ -1302,7 +1360,7 @@ Made by TMC.LOL
             }
 
             // --- ADMIN ONLY COMMANDS ---
-            const adminCommands = ['stock', 'stock_main', 'generator', 'force_refresh', 'remove_stock', 'refresh_cooldown_all', 'refresh_cooldown_user', 'refresh_user', 'logs', 'servers', 'setup-botlog', 'build', 'panel', 'generate-code', 'warn', 'warnings', 'purge', 'timeout', 'afk', 'announce', 'autodelete', 'autorole', 'ban', 'blacklist', 'bumpreminder', 'counting', 'fakeconvo', 'fakemessage', 'giveall', 'giveaway', 'info', 'leaderboard', 'level', 'levelset', 'lock', 'modmakerapply', 'mute', 'poll', 'postroles', 'postrules', 'reactionrole', 'roleadd', 'roleremove', 'setlogs', 'slowmode', 'starboard', 'status', 'ticketpanel', 'unlock', 'welcome', 'refresh_batch'];
+            const adminCommands = ['stock', 'stock_main', 'generator', 'force_refresh', 'remove-stock', 'reset-stock', 'remove-token', 'gen-codes', 'refresh_cooldown_all', 'refresh_cooldown_user', 'refresh_user', 'logs', 'servers', 'setup-botlog', 'build', 'panel', 'generate-code', 'warn', 'warnings', 'purge', 'timeout', 'afk', 'announce', 'autodelete', 'autorole', 'ban', 'blacklist', 'bumpreminder', 'counting', 'fakeconvo', 'fakemessage', 'giveall', 'giveaway', 'info', 'leaderboard', 'level', 'levelset', 'lock', 'modmakerapply', 'mute', 'poll', 'postroles', 'postrules', 'reactionrole', 'roleadd', 'roleremove', 'setlogs', 'slowmode', 'starboard', 'status', 'ticketpanel', 'unlock', 'welcome', 'refresh_batch'];
             
             if (adminCommands.includes(commandName)) {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
@@ -1389,11 +1447,12 @@ Made by TMC.LOL
                         .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
                         .setDescription(
                             'Generate your token below!\n\n' +
-                            `**Public Token** – everyone | cooldown: 20m\n\n` +
+                            `**Public Token** – everyone | cooldown: 5 minutes (bypass with <@&${NO_COOLDOWN_ROLE_ID}> role)\n\n` +
                             '*Tokens are only visible to you.*\n' +
                             '*Ephemeral — only you can see your token*\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
-                            '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
+                            '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n' +
+                            '🆔 **You will receive a Generation ID** – share with admins to remove that token.\n\n' +
                             '👑 **Credits:** @elliott (1363240484818128926)\n' +
                             '**Made by TMC.LOL**'
                         )
@@ -1432,14 +1491,178 @@ Made by TMC.LOL
                     }
                 }
 
-                if (commandName === 'remove_stock') {
+                // --- remove-stock interactive list (FIXED) ---
+                if (commandName === 'remove-stock') {
+                    // Build entries from tokens that have an id
+                    const entries = tokenStock
+                        .filter(t => t.id && t.id.length > 0) // ensure it's a non-empty string
+                        .map(t => ({
+                            id: t.id,
+                            userId: t.userId,
+                            username: t.username || `<@${t.userId}>`
+                        }));
+
+                    if (entries.length === 0) {
+                        // If no entries, show a helpful message
+                        return interaction.reply({
+                            content: '📭 No active generation IDs to remove.\n' +
+                                     'Generate a token first using the generator panel or `/token`.\n' +
+                                     'If you already have tokens, try running `/reset-stock` and generate a new one.',
+                            flags: 64
+                        });
+                    }
+
+                    entries.sort((a, b) => a.id.localeCompare(b.id));
+
+                    const itemsPerPage = 5;
+                    const totalPages = Math.ceil(entries.length / itemsPerPage);
+                    let page = 0;
+
+                    const generateEmbedAndButtons = (page) => {
+                        const start = page * itemsPerPage;
+                        const end = Math.min(start + itemsPerPage, entries.length);
+                        const pageEntries = entries.slice(start, end);
+                        const embed = new EmbedBuilder()
+                            .setTitle('🗑️ Remove a Token by Selection')
+                            .setDescription(`Page ${page+1} of ${totalPages} (${entries.length} total)\nClick the **Remove** button next to the token you want to delete.`)
+                            .setColor(0xED4245)
+                            .setFooter({ text: 'TMC.LOL • Click Remove to delete the token' });
+
+                        pageEntries.forEach((entry) => {
+                            embed.addFields({
+                                name: `\`${entry.id}\``,
+                                value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                                inline: false
+                            });
+                        });
+
+                        const row = new ActionRowBuilder();
+                        pageEntries.forEach((entry) => {
+                            row.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`remove_${entry.id}`)
+                                    .setLabel(`Remove ${entry.id}`)
+                                    .setStyle(ButtonStyle.Danger)
+                                    .setEmoji('🗑️')
+                            );
+                        });
+
+                        const navRow = new ActionRowBuilder();
+                        if (totalPages > 1) {
+                            navRow.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId('remove_stock_prev')
+                                    .setLabel('◀ Previous')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(page === 0),
+                                new ButtonBuilder()
+                                    .setCustomId('remove_stock_next')
+                                    .setLabel('Next ▶')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(page === totalPages - 1)
+                            );
+                        }
+
+                        const components = [row];
+                        if (totalPages > 1) {
+                            components.push(navRow);
+                        }
+                        return { embed, components };
+                    };
+
+                    const { embed, components } = generateEmbedAndButtons(0);
+                    const reply = await interaction.reply({
+                        embeds: [embed],
+                        components: components,
+                        flags: 64
+                    });
+
+                    const messageId = reply.id;
+                    removeStockPages.set(messageId, {
+                        userId: interaction.user.id,
+                        page: 0,
+                        entries: entries,
+                        totalPages: totalPages,
+                        messageId: messageId
+                    });
+                }
+
+                if (commandName === 'reset-stock') {
                     tokenStock = [{
                         bearer: DEFAULT_TOKEN.bearer,
                         refresh: DEFAULT_TOKEN.refresh_token,
                         addedAt: Date.now(),
                         expiresAt: Date.now() + (60 * 60 * 1000)
                     }];
-                    return interaction.reply({ content: '🔄 Stock has been reset to the default token.', flags: 64 });
+                    return interaction.reply({ content: '🔄 Stock has been reset to the default token and all tracked IDs cleared.', flags: 64 });
+                }
+
+                if (commandName === 'remove-token') {
+                    const id = options.getString('id').trim();
+                    const result = removeTokenById(id);
+                    if (result.success) {
+                        return interaction.reply({ content: `✅ ${result.message}`, flags: 64 });
+                    } else {
+                        return interaction.reply({ content: `❌ ${result.message}`, flags: 64 });
+                    }
+                }
+
+                if (commandName === 'gen-codes') {
+                    const entries = tokenStock
+                        .filter(t => t.id && t.id.length > 0)
+                        .map(t => ({
+                            id: t.id,
+                            userId: t.userId,
+                            username: t.username || `<@${t.userId}>`
+                        }));
+
+                    if (entries.length === 0) {
+                        return interaction.reply({ content: '📭 No active generation IDs found.', flags: 64 });
+                    }
+
+                    entries.sort((a, b) => a.id.localeCompare(b.id));
+
+                    const itemsPerPage = 10;
+                    const totalPages = Math.ceil(entries.length / itemsPerPage);
+                    let page = 0;
+
+                    const generateEmbed = (page) => {
+                        const start = page * itemsPerPage;
+                        const end = Math.min(start + itemsPerPage, entries.length);
+                        const pageEntries = entries.slice(start, end);
+                        const embed = new EmbedBuilder()
+                            .setTitle('📋 Active Generation IDs')
+                            .setDescription(`Page ${page+1} of ${totalPages} (${entries.length} total)\n\nUse \`/remove-token <ID>\` to remove a token.`)
+                            .setColor(0x5865F2)
+                            .setFooter({ text: 'TMC.LOL • Click buttons to navigate' });
+                        pageEntries.forEach((entry) => {
+                            embed.addFields({
+                                name: `\`${entry.id}\``,
+                                value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                                inline: false
+                            });
+                        });
+                        return embed;
+                    };
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('gen_codes_prev').setLabel('◀ Previous').setStyle(ButtonStyle.Primary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('gen_codes_next').setLabel('Next ▶').setStyle(ButtonStyle.Primary).setDisabled(totalPages <= 1)
+                    );
+
+                    const reply = await interaction.reply({
+                        embeds: [generateEmbed(0)],
+                        components: [row],
+                        flags: 64
+                    });
+
+                    const messageId = reply.id;
+                    genCodePages.set(messageId, {
+                        userId: interaction.user.id,
+                        page: 0,
+                        entries: entries,
+                        totalPages: totalPages
+                    });
                 }
 
                 if (commandName === 'refresh_cooldown_all') {
@@ -1606,11 +1829,12 @@ Made by TMC.LOL
                             .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
                             .setDescription(
                                 'Generate your token below!\n\n' +
-                                `**Public Token** – everyone | cooldown: 20m\n\n` +
+                                `**Public Token** – everyone | cooldown: 5 minutes (bypass with <@&${NO_COOLDOWN_ROLE_ID}> role)\n\n` +
                                 '*Tokens are only visible to you.*\n' +
                                 '*Ephemeral — only you can see your token*\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
-                                '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n\n' +
+                                '🔄 **Auto-Refresh:** Every 5 minutes (NEW strings, SAME account)\n' +
+                                '🆔 **You will receive a Generation ID** – share with admins to remove that token.\n\n' +
                                 '👑 **Credits:** @elliott (1363240484818128926)\n' +
                                 '**Made by TMC.LOL**'
                             )
@@ -1767,10 +1991,294 @@ Made by TMC.LOL
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            if (interaction.customId === 'gen_public') {
-                return await processTokenGeneration(interaction, 'Public Token (20m)');
+            // --- Handle remove buttons from remove-stock ---
+            if (interaction.customId.startsWith('remove_')) {
+                const id = interaction.customId.replace('remove_', '');
+                const messageId = interaction.message.id;
+                const state = removeStockPages.get(messageId);
+                if (!state) {
+                    return interaction.reply({ content: '❌ This removal session has expired. Please run `/remove-stock` again.', flags: 64 });
+                }
+                if (state.userId !== interaction.user.id) {
+                    return interaction.reply({ content: '❌ You did not initiate this removal list.', flags: 64 });
+                }
+
+                const result = removeTokenById(id);
+                if (result.success) {
+                    // Update the list
+                    const newEntries = tokenStock
+                        .filter(t => t.id && t.id.length > 0)
+                        .map(t => ({
+                            id: t.id,
+                            userId: t.userId,
+                            username: t.username || `<@${t.userId}>`
+                        }));
+                    newEntries.sort((a, b) => a.id.localeCompare(b.id));
+
+                    if (newEntries.length === 0) {
+                        const embed = new EmbedBuilder()
+                            .setTitle('📭 No Tokens Left')
+                            .setDescription('All generation IDs have been removed.')
+                            .setColor(0x2ECC71);
+                        await interaction.update({
+                            embeds: [embed],
+                            components: []
+                        });
+                        removeStockPages.delete(messageId);
+                        await interaction.followUp({
+                            content: `✅ ${result.message}`,
+                            flags: 64
+                        });
+                        return;
+                    }
+
+                    state.entries = newEntries;
+                    const totalPages = Math.ceil(newEntries.length / 5);
+                    state.totalPages = totalPages;
+                    if (state.page >= totalPages) state.page = totalPages - 1;
+                    if (state.page < 0) state.page = 0;
+                    removeStockPages.set(messageId, state);
+
+                    const generateEmbedAndButtons = (page) => {
+                        const start = page * 5;
+                        const end = Math.min(start + 5, newEntries.length);
+                        const pageEntries = newEntries.slice(start, end);
+                        const embed = new EmbedBuilder()
+                            .setTitle('🗑️ Remove a Token by Selection')
+                            .setDescription(`Page ${page+1} of ${totalPages} (${newEntries.length} total)\nClick the **Remove** button next to the token you want to delete.`)
+                            .setColor(0xED4245)
+                            .setFooter({ text: 'TMC.LOL • Click Remove to delete the token' });
+
+                        pageEntries.forEach((entry) => {
+                            embed.addFields({
+                                name: `\`${entry.id}\``,
+                                value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                                inline: false
+                            });
+                        });
+
+                        const row = new ActionRowBuilder();
+                        pageEntries.forEach((entry) => {
+                            row.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`remove_${entry.id}`)
+                                    .setLabel(`Remove ${entry.id}`)
+                                    .setStyle(ButtonStyle.Danger)
+                                    .setEmoji('🗑️')
+                            );
+                        });
+
+                        const navRow = new ActionRowBuilder();
+                        if (totalPages > 1) {
+                            navRow.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId('remove_stock_prev')
+                                    .setLabel('◀ Previous')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(page === 0),
+                                new ButtonBuilder()
+                                    .setCustomId('remove_stock_next')
+                                    .setLabel('Next ▶')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(page === totalPages - 1)
+                            );
+                        }
+
+                        const components = [row];
+                        if (totalPages > 1) {
+                            components.push(navRow);
+                        }
+                        return { embed, components };
+                    };
+
+                    const { embed, components } = generateEmbedAndButtons(state.page);
+                    await interaction.update({
+                        embeds: [embed],
+                        components: components
+                    });
+                    await interaction.followUp({
+                        content: `✅ ${result.message}`,
+                        flags: 64
+                    });
+                } else {
+                    await interaction.reply({
+                        content: `❌ ${result.message}`,
+                        flags: 64
+                    });
+                    // Refresh the list anyway
+                    const newEntries = tokenStock
+                        .filter(t => t.id && t.id.length > 0)
+                        .map(t => ({
+                            id: t.id,
+                            userId: t.userId,
+                            username: t.username || `<@${t.userId}>`
+                        }));
+                    if (newEntries.length === 0) {
+                        const embed = new EmbedBuilder()
+                            .setTitle('📭 No Tokens Left')
+                            .setDescription('All generation IDs have been removed.')
+                            .setColor(0x2ECC71);
+                        await interaction.editReply({
+                            embeds: [embed],
+                            components: []
+                        });
+                        removeStockPages.delete(messageId);
+                    } else {
+                        state.entries = newEntries;
+                        const totalPages = Math.ceil(newEntries.length / 5);
+                        state.totalPages = totalPages;
+                        if (state.page >= totalPages) state.page = totalPages - 1;
+                        if (state.page < 0) state.page = 0;
+                        removeStockPages.set(messageId, state);
+                        const generateEmbedAndButtons = (page) => {
+                            const start = page * 5;
+                            const end = Math.min(start + 5, newEntries.length);
+                            const pageEntries = newEntries.slice(start, end);
+                            const embed = new EmbedBuilder()
+                                .setTitle('🗑️ Remove a Token by Selection')
+                                .setDescription(`Page ${page+1} of ${totalPages} (${newEntries.length} total)\nClick the **Remove** button next to the token you want to delete.`)
+                                .setColor(0xED4245)
+                                .setFooter({ text: 'TMC.LOL • Click Remove to delete the token' });
+
+                            pageEntries.forEach((entry) => {
+                                embed.addFields({
+                                    name: `\`${entry.id}\``,
+                                    value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                                    inline: false
+                                });
+                            });
+
+                            const row = new ActionRowBuilder();
+                            pageEntries.forEach((entry) => {
+                                row.addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`remove_${entry.id}`)
+                                        .setLabel(`Remove ${entry.id}`)
+                                        .setStyle(ButtonStyle.Danger)
+                                        .setEmoji('🗑️')
+                                );
+                            });
+
+                            const navRow = new ActionRowBuilder();
+                            if (totalPages > 1) {
+                                navRow.addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId('remove_stock_prev')
+                                        .setLabel('◀ Previous')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(page === 0),
+                                    new ButtonBuilder()
+                                        .setCustomId('remove_stock_next')
+                                        .setLabel('Next ▶')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(page === totalPages - 1)
+                                );
+                            }
+
+                            const components = [row];
+                            if (totalPages > 1) {
+                                components.push(navRow);
+                            }
+                            return { embed, components };
+                        };
+                        const { embed, components } = generateEmbedAndButtons(state.page);
+                        await interaction.editReply({
+                            embeds: [embed],
+                            components: components
+                        });
+                    }
+                }
+                return;
             }
 
+            // --- Pagination for remove-stock ---
+            if (interaction.customId === 'remove_stock_prev' || interaction.customId === 'remove_stock_next') {
+                const messageId = interaction.message.id;
+                const state = removeStockPages.get(messageId);
+                if (!state) {
+                    return interaction.reply({ content: '❌ This removal session has expired. Please run `/remove-stock` again.', flags: 64 });
+                }
+                if (state.userId !== interaction.user.id) {
+                    return interaction.reply({ content: '❌ You did not initiate this removal list.', flags: 64 });
+                }
+
+                let newPage = state.page;
+                if (interaction.customId === 'remove_stock_prev') newPage--;
+                else if (interaction.customId === 'remove_stock_next') newPage++;
+                if (newPage < 0 || newPage >= state.totalPages) {
+                    return interaction.reply({ content: '❌ You are already at the edge of the list.', flags: 64 });
+                }
+                state.page = newPage;
+                removeStockPages.set(messageId, state);
+
+                const entries = state.entries;
+                const totalPages = state.totalPages;
+                const generateEmbedAndButtons = (page) => {
+                    const start = page * 5;
+                    const end = Math.min(start + 5, entries.length);
+                    const pageEntries = entries.slice(start, end);
+                    const embed = new EmbedBuilder()
+                        .setTitle('🗑️ Remove a Token by Selection')
+                        .setDescription(`Page ${page+1} of ${totalPages} (${entries.length} total)\nClick the **Remove** button next to the token you want to delete.`)
+                        .setColor(0xED4245)
+                        .setFooter({ text: 'TMC.LOL • Click Remove to delete the token' });
+
+                    pageEntries.forEach((entry) => {
+                        embed.addFields({
+                            name: `\`${entry.id}\``,
+                            value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                            inline: false
+                        });
+                    });
+
+                    const row = new ActionRowBuilder();
+                    pageEntries.forEach((entry) => {
+                        row.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`remove_${entry.id}`)
+                                .setLabel(`Remove ${entry.id}`)
+                                .setStyle(ButtonStyle.Danger)
+                                .setEmoji('🗑️')
+                        );
+                    });
+
+                    const navRow = new ActionRowBuilder();
+                    if (totalPages > 1) {
+                        navRow.addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('remove_stock_prev')
+                                .setLabel('◀ Previous')
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(page === 0),
+                            new ButtonBuilder()
+                                .setCustomId('remove_stock_next')
+                                .setLabel('Next ▶')
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(page === totalPages - 1)
+                        );
+                    }
+
+                    const components = [row];
+                    if (totalPages > 1) {
+                        components.push(navRow);
+                    }
+                    return { embed, components };
+                };
+
+                const { embed, components } = generateEmbedAndButtons(newPage);
+                await interaction.update({
+                    embeds: [embed],
+                    components: components
+                });
+                return;
+            }
+
+            // --- gen_public button ---
+            if (interaction.customId === 'gen_public') {
+                return await processTokenGeneration(interaction, 'Public Token (5m cooldown)');
+            }
+
+            // --- verify button ---
             if (interaction.customId === 'verify_btn') {
                 await interaction.deferReply({ flags: 64 });
 
@@ -1800,6 +2308,7 @@ Made by TMC.LOL
                 }
             }
 
+            // --- redeem button ---
             if (interaction.customId === 'redeem_btn') {
                 const modal = new ModalBuilder()
                     .setCustomId('redeem_modal')
@@ -1816,6 +2325,7 @@ Made by TMC.LOL
                 return await interaction.showModal(modal);
             }
 
+            // --- role announcements button ---
             if (interaction.customId === 'role_announcements') {
                 const role = interaction.guild.roles.cache.get(ANNOUNCEMENT_ROLE_ID);
                 if (!role) return interaction.reply({ content: "❌ Announcement role not configured.", flags: 64 });
@@ -1829,6 +2339,7 @@ Made by TMC.LOL
                 }
             }
 
+            // --- automod toggle button ---
             if (interaction.customId === 'automod_toggle') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
                     !isPrivilegedUser(interaction.user.id)) {
@@ -1837,6 +2348,7 @@ Made by TMC.LOL
                 return interaction.reply({ content: "🛡️ **Automod Security Matrix:** All parameters active.", flags: 64 });
             }
 
+            // --- close ticket button ---
             if (interaction.customId === 'close_ticket_btn') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
                     !isPrivilegedUser(interaction.user.id)) {
@@ -1844,6 +2356,58 @@ Made by TMC.LOL
                 }
                 await interaction.reply({ content: "🔒 Archiving ticket in 5 seconds..." });
                 setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+            }
+
+            // --- Pagination buttons for /gen-codes ---
+            if (interaction.customId === 'gen_codes_prev' || interaction.customId === 'gen_codes_next') {
+                const messageId = interaction.message.id;
+                const state = genCodePages.get(messageId);
+                if (!state) {
+                    return interaction.reply({ content: '❌ Pagination session expired.', flags: 64 });
+                }
+                if (state.userId !== interaction.user.id) {
+                    return interaction.reply({ content: '❌ You are not the one who requested this list.', flags: 64 });
+                }
+
+                const { entries, totalPages } = state;
+                let newPage = state.page;
+                if (interaction.customId === 'gen_codes_prev') newPage--;
+                else if (interaction.customId === 'gen_codes_next') newPage++;
+                if (newPage < 0 || newPage >= totalPages) {
+                    return interaction.reply({ content: '❌ You are already at the edge of the list.', flags: 64 });
+                }
+                state.page = newPage;
+                genCodePages.set(messageId, state);
+
+                const generateEmbed = (page) => {
+                    const start = page * 10;
+                    const end = Math.min(start + 10, entries.length);
+                    const pageEntries = entries.slice(start, end);
+                    const embed = new EmbedBuilder()
+                        .setTitle('📋 Active Generation IDs')
+                        .setDescription(`Page ${page+1} of ${totalPages} (${entries.length} total)\n\nUse \`/remove-token <ID>\` to remove a token.`)
+                        .setColor(0x5865F2)
+                        .setFooter({ text: 'TMC.LOL • Click buttons to navigate' });
+                    pageEntries.forEach((entry) => {
+                        embed.addFields({
+                            name: `\`${entry.id}\``,
+                            value: `👤 ${entry.username}\n🆔 <@${entry.userId}>`,
+                            inline: false
+                        });
+                    });
+                    return embed;
+                };
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('gen_codes_prev').setLabel('◀ Previous').setStyle(ButtonStyle.Primary).setDisabled(newPage === 0),
+                    new ButtonBuilder().setCustomId('gen_codes_next').setLabel('Next ▶').setStyle(ButtonStyle.Primary).setDisabled(newPage === totalPages - 1)
+                );
+
+                await interaction.update({
+                    embeds: [generateEmbed(newPage)],
+                    components: [row]
+                });
+                return;
             }
         }
 
