@@ -71,6 +71,8 @@ if (!hasServerKey) {
 // --- Token refresh queue system ---
 let isRefreshing = false;
 let failedQueue = [];
+let refreshAttempts = 0;
+const MAX_REFRESH_ATTEMPTS = 10;
 
 function processQueue(error, token = null) {
     failedQueue.forEach(prom => {
@@ -85,8 +87,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI0YmQ5MTE1My1kNWE2LTQzZDUtODVmNy01YTRiNGYwYjIzMTIiLCJ1aWQiOiJlZmEyNWIzMC01NGFkLTRmMjMtODliZC0zYTRjZDE2ODg3NDkiLCJ1c24iOiJVcWhYMUhrZzJkRXZaSHcwIiwidnJzIjp7ImF1dGhJRCI6IjVkNzRlYTRiNjAyNTRiMGE5MmJiODVhYjY0OTcyZTdmIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiMTBhNGQ1MjYxYmEwYTMzNDc3MTM5MTNiOTIxZjk5MzY5ZjgzNzIyYSJ9LCJleHAiOjE3ODgwNTMwNDMsImlhdCI6MTc4ODAzODc5NH0.HcUHhb6xcW9ZGQj-PosJckSpfNWl80Dg2ZOlIVbvOVI",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI0YmQ5MTE1My1kNWE2LTQzZDUtODVmNy01YTRiNGYwYjIzMTIiLCJ1aWQiOiJlZmEyNWIzMC01NGFkLTRmMjMtODliZC0zYTRjZDE2ODg3NDkiLCJ1c24iOiJVcWhYMUhrZzJkRXZaSHcwIiwidnJzIjp7ImF1dGhJRCI6IjVkNzRlYTRiNjAyNTRiMGE5MmJiODVhYjY0OTcyZTdmIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiMTBhNGQ1MjYxYmEwYTMzNDc3MTM5MTNiOTIxZjk5MzY5ZjgzNzIyYSJ9LCJleHAiOjE3ODgwNzEwNDMsImlhdCI6MTc4ODAzODc5NH0.yQFrPE60VCC08HUERLUsZxi5-Qq-fMwNF89-j-D6bXw"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkNGZjNjk2Ni1kMThkLTQxNDgtYTFiOS02YTRiOWNjMmRlOTEiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImFmMTQyNTA3MTMxYTRkYzc4MDA3YzJkMGZjY2U1N2I4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNTM1NzUsImlhdCI6MTc4ODA0Njc1MX0.DlWUeDmJLor95s92RsWrM8PRNDsosZKmthsKVcvNz4I",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkNGZjNjk2Ni1kMThkLTQxNDgtYTFiOS02YTRiOWNjMmRlOTEiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImFmMTQyNTA3MTMxYTRkYzc4MDA3YzJkMGZjY2U1N2I4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNzE1NzUsImlhdCI6MTc4ODA0Njc1MX0.0JHSp8L5Zo2Sk_Sx08VAWWAUh011N3OxzYPHq9xwVz8"
 };
 
 // --- Map to track remove-stock message for updates ---
@@ -285,6 +287,8 @@ function forceSetOwnToken(bearer, refresh) {
     }];
     console.log('[TMC.LOL] ✅ Token manually set!');
     console.log('[TMC.LOL] ⏳ Token will NEVER expire!');
+    console.log(`[TMC.LOL] Bearer: ${bearer.substring(0, 50)}...`);
+    console.log(`[TMC.LOL] Refresh: ${refresh.substring(0, 50)}...`);
 }
 
 // --- TOKEN VALIDATION - ALWAYS RETURNS VALID ---
@@ -298,7 +302,7 @@ async function validateSteamToken(bearerToken, retries = 3) {
     };
 }
 
-// --- TOKEN REFRESH SYSTEM ---
+// --- TOKEN REFRESH SYSTEM - IMPROVED ---
 async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
@@ -313,14 +317,22 @@ async function refreshToken(refreshTk) {
         isRefreshing = true;
         console.log('[TMC.LOL] 🔒 Refresh lock acquired');
 
-        const urlsToTry = apiWorking ? [ACTIVE_API_URL, ...API_URLS.filter(u => u !== ACTIVE_API_URL)] : [...API_URLS];
+        // Try all URLs
+        const urlsToTry = [...API_URLS];
+        // Move active URL to front if it exists
+        if (ACTIVE_API_URL && urlsToTry.includes(ACTIVE_API_URL)) {
+            urlsToTry.splice(urlsToTry.indexOf(ACTIVE_API_URL), 1);
+            urlsToTry.unshift(ACTIVE_API_URL);
+        }
+
+        let lastError = null;
 
         for (const url of urlsToTry) {
             try {
                 const refreshUrl = `${url}/v2/account/session/refresh`;
                 console.log(`[TMC.LOL] 🔄 Trying refresh at: ${refreshUrl}`);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
 
                 const serverKeyAuth = 'Basic ' + Buffer.from(NAKAMA_SERVER_KEY + ':').toString('base64');
 
@@ -331,7 +343,10 @@ async function refreshToken(refreshTk) {
                         'User-Agent': 'SteamVR 1.88.1.3421_a3df6ce5',
                         'Authorization': serverKeyAuth
                     },
-                    body: JSON.stringify({ token: refreshTk }),
+                    body: JSON.stringify({ 
+                        token: refreshTk,
+                        refresh_token: refreshTk // Send both formats
+                    }),
                     signal: controller.signal
                 });
 
@@ -344,25 +359,41 @@ async function refreshToken(refreshTk) {
                 }
 
                 const data = await response.json();
+                console.log(`[TMC.LOL] 📦 Response from ${url}:`, JSON.stringify(data).substring(0, 200));
 
-                if (response.status === 200 && data.token) {
-                    const newBearer = data.token;
-                    const newRefresh = data.refresh_token || refreshTk;
+                // Check for token in different response formats
+                let newBearer = null;
+                let newRefresh = null;
+
+                if (data.token) {
+                    newBearer = data.token;
+                    newRefresh = data.refresh_token || refreshTk;
+                } else if (data.access_token) {
+                    newBearer = data.access_token;
+                    newRefresh = data.refresh_token || refreshTk;
+                } else if (data.bearer) {
+                    newBearer = data.bearer;
+                    newRefresh = data.refresh_token || refreshTk;
+                }
+
+                if (response.status === 200 && newBearer) {
                     const expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000); // NEVER EXPIRES
 
                     if (!newBearer || newBearer === refreshTk) {
-                        console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token`);
+                        console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token, skipping`);
                         continue;
                     }
 
                     console.log(`[TMC.LOL] ✅ Successfully refreshed token via ${url}!`);
                     console.log(`[TMC.LOL] New Bearer: ${newBearer.substring(0, 50)}...`);
+                    console.log(`[TMC.LOL] New Refresh: ${newRefresh.substring(0, 50)}...`);
                     console.log(`[TMC.LOL] ⏳ Token will NEVER expire!`);
 
                     DEFAULT_TOKEN.bearer = newBearer;
                     DEFAULT_TOKEN.refresh_token = newRefresh;
                     ACTIVE_API_URL = url;
                     apiWorking = true;
+                    refreshAttempts = 0; // Reset attempts on success
 
                     if (tokenStock.length > 0) {
                         const oldToken = tokenStock[0];
@@ -371,11 +402,21 @@ async function refreshToken(refreshTk) {
                             refresh: newRefresh,
                             addedAt: Date.now(),
                             expiresAt: expiresAt,
-                            id: oldToken.id,
-                            userId: oldToken.userId,
-                            username: oldToken.username
+                            id: oldToken.id || generateGenerationId(),
+                            userId: oldToken.userId || 'system',
+                            username: oldToken.username || 'System'
                         };
                         tokenStock[0] = newToken;
+                    } else {
+                        tokenStock.push({
+                            bearer: newBearer,
+                            refresh: newRefresh,
+                            addedAt: Date.now(),
+                            expiresAt: expiresAt,
+                            id: generateGenerationId(),
+                            userId: 'system',
+                            username: 'System'
+                        });
                     }
 
                     const result = {
@@ -391,22 +432,32 @@ async function refreshToken(refreshTk) {
                     return result;
                 } else {
                     console.log(`[TMC.LOL] ❌ ${url} - Status: ${response.status}`, data);
+                    lastError = data;
                 }
             } catch (err) {
                 console.log(`[TMC.LOL] ❌ ${url} - ${err.message}`);
+                lastError = err.message;
             }
         }
 
-        console.log('[TMC.LOL] ❌ All refresh URLs failed, keeping current token');
-        processQueue(null, { success: false });
+        console.log('[TMC.LOL] ❌ All refresh URLs failed');
+        console.log('[TMC.LOL] ⚠️ Last error:', lastError);
+        
+        // If refresh fails, try to keep using the existing token
+        if (tokenStock.length > 0) {
+            console.log('[TMC.LOL] 📦 Keeping existing token in stock');
+            tokenStock[0].expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
+        }
+        
+        processQueue(new Error('All refresh URLs failed'), null);
         isRefreshing = false;
-        return { success: false };
+        return { success: false, error: lastError };
 
     } catch (err) {
         console.error('[TMC.LOL] Refresh error:', err.message);
-        processQueue(null, { success: false });
+        processQueue(err, null);
         isRefreshing = false;
-        return { success: false };
+        return { success: false, error: err.message };
     }
 }
 
@@ -427,19 +478,31 @@ async function refreshTokenInStock() {
     
     const tokenObj = tokenStock[0];
     
+    if (!tokenObj.refresh) {
+        console.log('[TMC.LOL] ❌ No refresh token in stock!');
+        return;
+    }
+    
     try {
         const refreshResult = await refreshToken(tokenObj.refresh);
         
         if (refreshResult.success) {
             console.log('[TMC.LOL] ✅ Token refreshed with NEW strings!');
+            console.log(`[TMC.LOL] New Bearer: ${tokenStock[0].bearer.substring(0, 50)}...`);
+            console.log(`[TMC.LOL] ⏳ Token will NEVER expire!`);
         } else {
             console.log('[TMC.LOL] ❌ Refresh failed, keeping existing token');
+            console.log('[TMC.LOL] ⚠️ Error:', refreshResult.error || 'Unknown error');
+            tokenStock[0].expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
+            tokenStock[0].addedAt = Date.now();
         }
     } catch (err) {
         console.error('[TMC.LOL] Error in refresh process:', err);
+        console.log('[TMC.LOL] ❌ Keeping existing token - refresh failed');
     }
     
     console.log(`[TMC.LOL] Stock count: ${tokenStock.length}`);
+    console.log(`[TMC.LOL] Next refresh in 1 minute...`);
 }
 
 // --- START AUTO-REFRESH ---
@@ -456,6 +519,7 @@ function startAutoRefresh() {
 
     isRefreshing = false;
     failedQueue = [];
+    refreshAttempts = 0;
     
     setTimeout(async () => {
         await findWorkingApiUrl();
@@ -472,7 +536,7 @@ function startAutoRefresh() {
             await findWorkingApiUrl();
         }
         await refreshTokenInStock();
-    }, 60 * 1000);
+    }, 60 * 1000); // Every 1 minute
 }
 
 // --- PROCESS TOKEN GENERATION ---
@@ -543,6 +607,7 @@ async function processTokenGeneration(interaction, tierName) {
         
         let tokenObj = tokenStock[0];
         
+        // Always try to refresh before giving token
         const refreshResult = await refreshToken(tokenObj.refresh);
         if (refreshResult.success) {
             tokenObj = tokenStock[0];
@@ -1366,21 +1431,30 @@ ${genId}
                         });
                     }
 
-                    // FIXED: Show full tokens with copy buttons
+                    // Try to refresh the token immediately
+                    const refreshResult = await refreshToken(refresh);
+                    
+                    let statusMessage = '✅ Token has been updated with the new values.';
+                    if (refreshResult.success) {
+                        statusMessage = '✅ Token has been updated and REFRESHED successfully! The bot will now auto-refresh this token every minute.';
+                    } else {
+                        statusMessage = '⚠️ Token updated but refresh failed. The bot will keep trying to refresh it automatically.';
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle('🔄 Token Refreshed Successfully!')
-                        .setDescription('✅ Token has been updated with the new values. Click the buttons below to copy each token.')
+                        .setDescription(statusMessage)
                         .setColor(0x2ECC71)
                         .addFields(
                             { name: '📋 Bearer Token', value: `\`\`\`\n${bearer}\n\`\`\``, inline: false },
                             { name: '📋 Refresh Token', value: `\`\`\`\n${refresh}\n\`\`\``, inline: false },
                             { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
-                            { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true }
+                            { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
+                            { name: '🔄 Auto-Refresh', value: 'Every 1 minute', inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
 
-                    // Add copy buttons for each token
                     const row1 = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId(`copy_bearer_${Date.now()}`)
@@ -1494,7 +1568,6 @@ client.on('interactionCreate', async interaction => {
             const parts = interaction.customId.split('_');
             const type = parts[1]; // 'bearer' or 'refresh'
             
-            // Get the token from the embed description
             const embed = interaction.message.embeds[0];
             if (!embed) return;
             
@@ -1518,20 +1591,16 @@ client.on('interactionCreate', async interaction => {
                 });
             }
             
-            // Copy to clipboard via ephemeral message with the token
             await interaction.reply({
                 content: `✅ **${type.charAt(0).toUpperCase() + type.slice(1)} Token copied!**\n\`\`\`\n${token}\n\`\`\`\n(Click the three dots → Copy Message to copy it)`,
                 flags: 64
             });
             
-            // Also send a DM with the token for easy copying
             try {
                 await interaction.user.send({
                     content: `📋 **${type.charAt(0).toUpperCase() + type.slice(1)} Token**\n\`\`\`\n${token}\n\`\`\``
                 });
-            } catch (dmErr) {
-                // User has DMs closed, that's fine
-            }
+            } catch (dmErr) {}
         }
     } catch (err) {
         console.error('[TMC.LOL] Copy button error:', err);
@@ -1540,7 +1609,6 @@ client.on('interactionCreate', async interaction => {
 
 // --- HEALTH CHECK HTTP SERVER ---
 const server = http.createServer((req, res) => {
-    // Health check endpoint for Render
     if (req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', bot: 'online', timestamp: Date.now() }));
@@ -1555,66 +1623,44 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`[TMC.LOL] HTTP server running on port ${PORT}`);
 });
 
-// --- LOGIN WITH RETRY AND BETTER ERROR HANDLING ---
+// --- LOGIN WITH RETRY ---
 console.log('[TMC.LOL] 🔑 Attempting to login to Discord...');
 
 if (!process.env.DISCORD_TOKEN) {
     console.error('[TMC.LOL] ❌ DISCORD_TOKEN environment variable is NOT set!');
-    console.error('[TMC.LOL] ❌ Please add it in Render dashboard → Environment');
 } else {
     console.log(`[TMC.LOL] ✅ DISCORD_TOKEN is set (length: ${process.env.DISCORD_TOKEN.length})`);
     
-    // Try login with retry
     async function loginWithRetry(attempts = 5) {
         for (let i = 1; i <= attempts; i++) {
             try {
                 console.log(`[TMC.LOL] 🔄 Login attempt ${i}/${attempts}...`);
-                
-                // Create a login promise with timeout
                 const loginPromise = client.login(process.env.DISCORD_TOKEN);
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Login timeout after 30 seconds')), 30000);
                 });
-                
                 await Promise.race([loginPromise, timeoutPromise]);
                 console.log('[TMC.LOL] ✅ Discord login successful!');
                 return true;
-                
             } catch (err) {
                 console.error(`[TMC.LOL] ❌ Login attempt ${i} failed:`, err.message);
-                
                 if (i === attempts) {
                     console.error('[TMC.LOL] ❌ All login attempts failed.');
-                    console.error('[TMC.LOL] 💡 Possible causes:');
-                    console.error('[TMC.LOL]    1. Render is blocking Discord API connections');
-                    console.error('[TMC.LOL]    2. Invalid bot token (regenerate it in Discord Developer Portal)');
-                    console.error('[TMC.LOL]    3. Privileged intents not enabled in Discord Developer Portal');
-                    console.error('[TMC.LOL]    4. Try upgrading to Render paid plan for better network access');
-                    console.error('[TMC.LOL] 💡 The HTTP server will continue running for health checks.');
-                    console.error('[TMC.LOL] 💡 The bot will keep trying to connect in the background.');
                     return false;
                 }
-                
-                // Wait before retrying with exponential backoff
-                const waitTime = 5000 * i;
-                console.log(`[TMC.LOL] ⏳ Waiting ${waitTime/1000}s before retry...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                await new Promise(resolve => setTimeout(resolve, 5000 * i));
             }
         }
         return false;
     }
 
-    // Start the login process
     loginWithRetry().then(success => {
         if (!success) {
             console.error('[TMC.LOL] ❌ Bot failed to connect to Discord.');
-            console.error('[TMC.LOL] 💡 The HTTP server will continue running for health checks.');
-            console.error('[TMC.LOL] 💡 Try switching to a Render paid plan or using a different hosting provider.');
         }
     });
 }
 
-// Keep the process alive
 process.on('unhandledRejection', (reason) => {
     console.error('[TMC.LOL] Unhandled Rejection:', reason);
 });
