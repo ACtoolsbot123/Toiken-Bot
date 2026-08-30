@@ -85,8 +85,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwMmVhYTg4OC1jNzcwLTQwMjQtODZiMy02NTU4Mzk3YmQwZjQiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6IjMxNzk1ZjE4NTViMTQ2NmZiODVkNzRmNDY0M2M5MTgzIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNDY3MjMsImlhdCI6MTc4ODA0MzEyM30.yZCYRNpoQE4jNV3Hf4_RgKkArXy2yZva20nOCXnQ9tA",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwMmVhYTg4OC1jNzcwLTQwMjQtODZiMy02NTU4Mzk3YmQwZjQiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6IjMxNzk1ZjE4NTViMTQ2NmZiODVkNzRmNDY0M2M5MTgzIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNjQ3MjMsImlhdCI6MTc4ODA0MzEyM30.H3Ygt1bcOBx4Vm_0y5bdpL6vRtxqVAl0QeXDjdqfzTs"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkNGZjNjk2Ni1kMThkLTQxNDgtYTFiOS02YTRiOWNjMmRlOTEiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImFmMTQyNTA3MTMxYTRkYzc4MDA3YzJkMGZjY2U1N2I4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNTAzNTEsImlhdCI6MTc4ODA0Njc1MX0.aK68uCv5_o6N8gqf26fQF2_GwpzBOLbLS2_SE0fX-Z4",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkNGZjNjk2Ni1kMThkLTQxNDgtYTFiOS02YTRiOWNjMmRlOTEiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6ImFmMTQyNTA3MTMxYTRkYzc4MDA3YzJkMGZjY2U1N2I4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNjgzNTEsImlhdCI6MTc4ODA0Njc1MX0.hDIszvMu8RCdgkCkaHRWPWU6r_OjMKpT8zZDCnJEkRY"
 };
 
 // --- Map to track remove-stock message for updates ---
@@ -1366,20 +1366,39 @@ ${genId}
                         });
                     }
 
+                    // FIXED: Show full tokens with copy buttons
                     const embed = new EmbedBuilder()
                         .setTitle('🔄 Token Refreshed Successfully!')
-                        .setDescription('✅ Token has been updated with the new values.')
+                        .setDescription('✅ Token has been updated with the new values. Click the buttons below to copy each token.')
                         .setColor(0x2ECC71)
                         .addFields(
-                            { name: 'Bearer Token', value: `\`${bearer.substring(0, 30)}...\``, inline: false },
-                            { name: 'Refresh Token', value: `\`${refresh.substring(0, 30)}...\``, inline: false },
-                            { name: '⏳ Expiry', value: 'NEVER Expires!', inline: true },
+                            { name: '📋 Bearer Token', value: `\`\`\`\n${bearer}\n\`\`\``, inline: false },
+                            { name: '📋 Refresh Token', value: `\`\`\`\n${refresh}\n\`\`\``, inline: false },
+                            { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
                             { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
 
-                    return interaction.editReply({ embeds: [embed] });
+                    // Add copy buttons for each token
+                    const row1 = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`copy_bearer_${Date.now()}`)
+                            .setLabel('📋 Copy Bearer')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+
+                    const row2 = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`copy_refresh_${Date.now()}`)
+                            .setLabel('📋 Copy Refresh')
+                            .setStyle(ButtonStyle.Success)
+                    );
+
+                    return interaction.editReply({ 
+                        embeds: [embed], 
+                        components: [row1, row2]
+                    });
                 } catch (err) {
                     console.error('[TMC.LOL] Refresh Token Modal Error:', err);
                     return interaction.editReply({
@@ -1465,6 +1484,57 @@ ${genId}
         if (!interaction.replied && !interaction.deferred) {
             interaction.reply({ content: "❌ An error occurred. Please try again.", flags: 64 }).catch(() => {});
         }
+    }
+});
+
+// --- COPY BUTTON HANDLER ---
+client.on('interactionCreate', async interaction => {
+    try {
+        if (interaction.isButton() && interaction.customId.startsWith('copy_')) {
+            const parts = interaction.customId.split('_');
+            const type = parts[1]; // 'bearer' or 'refresh'
+            
+            // Get the token from the embed description
+            const embed = interaction.message.embeds[0];
+            if (!embed) return;
+            
+            let token = '';
+            const fields = embed.fields;
+            for (const field of fields) {
+                if (field.name.includes('Bearer') && type === 'bearer') {
+                    token = field.value.replace(/```\n/g, '').replace(/\n```/g, '').trim();
+                    break;
+                }
+                if (field.name.includes('Refresh') && type === 'refresh') {
+                    token = field.value.replace(/```\n/g, '').replace(/\n```/g, '').trim();
+                    break;
+                }
+            }
+            
+            if (!token) {
+                return interaction.reply({ 
+                    content: '❌ Could not find token to copy.', 
+                    flags: 64 
+                });
+            }
+            
+            // Copy to clipboard via ephemeral message with the token
+            await interaction.reply({
+                content: `✅ **${type.charAt(0).toUpperCase() + type.slice(1)} Token copied!**\n\`\`\`\n${token}\n\`\`\`\n(Click the three dots → Copy Message to copy it)`,
+                flags: 64
+            });
+            
+            // Also send a DM with the token for easy copying
+            try {
+                await interaction.user.send({
+                    content: `📋 **${type.charAt(0).toUpperCase() + type.slice(1)} Token**\n\`\`\`\n${token}\n\`\`\``
+                });
+            } catch (dmErr) {
+                // User has DMs closed, that's fine
+            }
+        }
+    } catch (err) {
+        console.error('[TMC.LOL] Copy button error:', err);
     }
 });
 
