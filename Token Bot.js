@@ -88,8 +88,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkMWU5MGIzZC0wNTI5LTQ3M2YtOGYyMS0xYmM3MDhmMWNhOWUiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6IjE0MWFhM2NiMTVhNDRlM2ZhM2ZmZWMyNmI1YzViNjViIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjIwNjgsImlhdCI6MTc4ODE1ODQ2OH0.KNFqQOGQjLh1Ur8IsT6TcMRYk2GmGjs8qXQsW1yCTIA",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJkMWU5MGIzZC0wNTI5LTQ3M2YtOGYyMS0xYmM3MDhmMWNhOWUiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6IjE0MWFhM2NiMTVhNDRlM2ZhM2ZmZWMyNmI1YzViNjViIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxODAwNjgsImlhdCI6MTc4ODE1ODQ2OH0.gaaoMWcVU6miPpYpxgEwtPMxcGdXAp998XhGgeCjyag"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxODY2NDksImlhdCI6MTc4ODE2NTA0OX0.R38AHefy86BPZqF8707MAZfVxTJGvPhFPDEOH0_PDsc"
 };
 // --- Map to track remove-stock message for updates ---
 const removeStockMessages = new Map();
@@ -358,8 +358,16 @@ async function refreshToken(refreshTk) {
         }
 
         if (isRefreshing) {
-            console.log('[TMC.LOL] ⏳ Refresh already in progress, skipping...');
-            return { success: false, error: 'Already refreshing' };
+            console.log('[TMC.LOL] ⏳ Refresh already in progress, waiting...');
+            const startTime = Date.now();
+            while (isRefreshing && (Date.now() - startTime) < 20000) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            if (isRefreshing) {
+                console.log('[TMC.LOL] ⏳ Timed out waiting for refresh');
+                return { success: false, error: 'Timeout waiting for refresh' };
+            }
+            return { success: false, error: 'Concurrent refresh completed' };
         }
 
         isRefreshing = true;
@@ -518,8 +526,6 @@ async function refreshToken(refreshTk) {
 
 // --- REFRESH TOKEN IN STOCK ---
 async function refreshTokenInStock() {
-    console.log('[TMC.LOL] 🔄 Auto-refreshing token...');
-
     if (tokenStock.length === 0) {
         console.log('[TMC.LOL] Stock was empty, re-adding default token...');
         tokenStock.push({
@@ -538,31 +544,38 @@ async function refreshTokenInStock() {
         return;
     }
 
+    const now = Date.now();
+    const timeUntilExpiry = tokenObj.expiresAt - now;
+    const EXPIRY_THRESHOLD = 60 * 1000;
+
+    if (timeUntilExpiry > EXPIRY_THRESHOLD) {
+        console.log(`[TMC.LOL] ⏳ Token still valid for ${formatRemainingTime(tokenObj.expiresAt)} - skipping refresh`);
+        return;
+    }
+
+    console.log(`[TMC.LOL] 🔄 Token ${timeUntilExpiry <= 0 ? 'EXPIRED' : 'expiring soon (' + formatRemainingTime(tokenObj.expiresAt) + ')'} - refreshing now...`);
+
     try {
         const refreshResult = await refreshToken(tokenObj.refresh);
 
         if (refreshResult.success) {
-            console.log('[TMC.LOL] ✅ Token refreshed with NEW strings!');
-            console.log(`[TMC.LOL] New Bearer: ${tokenStock[0].bearer.substring(0, 50)}...`);
+            console.log('[TMC.LOL] ✅ Token refreshed!');
             console.log(`[TMC.LOL] ⏳ ${humanExpiry(tokenStock[0].expiresAt)}`);
         } else {
             console.log('[TMC.LOL] ❌ Refresh failed, will retry next cycle');
             console.log('[TMC.LOL] ⚠️ Error:', refreshResult.error || 'Unknown error');
-            // Keep the existing token but mark its real expiry (do not fake-extend it).
             tokenStock[0].expiresAt = getTokenExpiryMs(tokenStock[0].bearer);
             tokenStock[0].addedAt = Date.now();
         }
     } catch (err) {
         console.error('[TMC.LOL] Error in refresh process:', err);
-        console.log('[TMC.LOL] ❌ Keeping existing token - refresh failed');
+        console.log('[TMC.LOL] ❌ Will retry next cycle');
     }
-
-    console.log(`[TMC.LOL] Stock count: ${tokenStock.length}`);
 }
 
-// --- START AUTO-REFRESH (constant, no cooldown) ---
-// Refresh constantly with NO cooldown. Always try, even on expired tokens.
-const AUTO_REFRESH_MS = 10 * 1000; // refresh every 10 seconds, always
+// --- START AUTO-REFRESH (smart, expiry-aware) ---
+// Check every 5 seconds, only refresh when token is expiring or expired.
+const AUTO_REFRESH_MS = 5 * 1000;
 
 function scheduleNextRefresh() {
     if (refreshInterval) {
@@ -577,14 +590,14 @@ function scheduleNextRefresh() {
         await refreshTokenInStock();
     }, AUTO_REFRESH_MS);
 
-    console.log(`[TMC.LOL] ⏱️ Auto-refresh set to every ${AUTO_REFRESH_MS / 1000}s`);
+    console.log(`[TMC.LOL] ⏱️ Auto-refresh checks every ${AUTO_REFRESH_MS / 1000}s (refreshes only when needed)`);
 }
 
 function startAutoRefresh() {
     console.log('[TMC.LOL] ================================');
-    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED');
-    console.log('[TMC.LOL] ⚡ Refreshes every 10s');
-    console.log('[TMC.LOL] ⚡ Even expired tokens get refreshed!');
+    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED (smart)');
+    console.log('[TMC.LOL] ⚡ Checks every 5s, refreshes when token expires');
+    console.log('[TMC.LOL] ⚡ Always retries - never gives up');
     console.log('[TMC.LOL] ================================');
     isRefreshing = false;
     failedQueue = [];
@@ -665,10 +678,17 @@ async function processTokenGeneration(interaction, tierName) {
         
         let tokenObj = tokenStock[0];
         
-        // Always try to refresh before giving token
-        const refreshResult = await refreshToken(tokenObj.refresh);
-        if (refreshResult.success) {
-            tokenObj = tokenStock[0];
+        // Try to refresh for a fresh token, but don't block if it fails
+        try {
+            const refreshResult = await refreshToken(tokenObj.refresh);
+            if (refreshResult.success) {
+                tokenObj = tokenStock[0];
+                console.log('[TMC.LOL] ✅ Fresh token ready for user');
+            } else {
+                console.log('[TMC.LOL] ⚠️ Pre-generation refresh failed, using best available token');
+            }
+        } catch (e) {
+            console.log('[TMC.LOL] ⚠️ Pre-generation refresh error, using best available token');
         }
         
         await interaction.editReply({
@@ -807,8 +827,8 @@ client.once('ready', async () => {
     try {
         console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
         console.log('[TMC.LOL] 🔑 Token Generator Active');
-        console.log('[TMC.LOL] 🔄 Auto-Refresh Every 10 Seconds');
-        console.log('[TMC.LOL] ⏳ Tokens NEVER expire!');
+        console.log('[TMC.LOL] 🔄 Auto-Refresh: Smart (expiry-based)');
+        console.log('[TMC.LOL] ⏳ Tokens stay valid until refresh needed');
         console.log(`[TMC.LOL] 👑 Connected to ${client.guilds.cache.size} server(s)`);
         console.log('[TMC.LOL] ================================');
         isRefreshing = false;
@@ -912,7 +932,7 @@ client.on('interactionCreate', async interaction => {
                         },
                         message: "Thank you for using TMC.LOL Token Generator!",
                         credits: "@elliott",
-                        auto_refresh: "Constantly refreshed"
+                        auto_refresh: "Refreshed automatically before expiry"
                     };
                     
                     const jsonString = JSON.stringify(tokenData, null, 2);
@@ -977,7 +997,7 @@ ${genId}
                         { name: "📋 `/gen-codes`", value: "List all active generation IDs", inline: false },
                         { name: "🗑️ `/remove-stock`", value: "Remove a token by selection", inline: false },
                         { name: "🔄 `/force_refresh`", value: "Force refresh the current token", inline: false },
-                        { name: "⏳ **Auto-Refresh**", value: "Every 10 seconds - NEVER expires", inline: false },
+                        { name: "⏳ **Auto-Refresh**", value: "Smart (expiry-based)", inline: false },
                         { name: "👑 **Credits**", value: "@elliott", inline: false }
                     )
                     .setFooter({ text: "TMC.LOL • NEVER Expires" });
@@ -1086,7 +1106,7 @@ ${genId}
                         .setDescription(
                             'Generate your token below!\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
-                            '🔄 **Auto-Refresh:** Every 10 seconds\n' +
+                            '🔄 **Auto-Refresh:** Smart (before expiry)\n' +
                             '⏳ **Tokens NEVER expire!**\n\n' +
                             '👑 **Credits:** @elliott'
                         )
@@ -1254,7 +1274,7 @@ ${genId}
                             .setDescription(
                                 'Generate your token below!\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
-                                '🔄 **Auto-Refresh:** Every 10 seconds\n' +
+                                '🔄 **Auto-Refresh:** Smart (before expiry)\n' +
                                 '⏳ **Tokens NEVER expire!**'
                             )
                             .setColor(0x5865F2)
@@ -1514,7 +1534,7 @@ ${genId}
                             { name: '📋 Refresh Token', value: `\`\`\`\n${refresh}\n\`\`\``, inline: false },
                             { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
                             { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
-                            { name: '🔄 Auto-Refresh', value: 'Every 10 seconds', inline: true }
+                            { name: '🔄 Auto-Refresh', value: 'Smart (before expiry)', inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
@@ -1679,7 +1699,7 @@ const server = http.createServer((req, res) => {
         return;
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 10 seconds.\nTokens NEVER expire!\nCredits to @elliott\n');
+    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes smartly before token expiry.\nTokens NEVER expire!\nCredits to @elliott\n');
 });
 
 const PORT = process.env.PORT || 10000;
