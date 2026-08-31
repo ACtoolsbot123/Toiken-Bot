@@ -88,8 +88,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxODY2NDksImlhdCI6MTc4ODE2NTA0OX0.R38AHefy86BPZqF8707MAZfVxTJGvPhFPDEOH0_PDsc"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzZGYxY2RmNC0yYzQ4LTRhMDMtYmI2OS04MGU2MGI4NmE0YzQiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6IjYyNzBlYWRhNjAyNTQ1OGQ5MGM2NzE1NmJiYmViM2U4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNzQ0MTksImlhdCI6MTc4ODE3MDgxOX0.GtT7pJvbpP22zhX6rJEb5fH3exERZ31GdRbb2io09Vw",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzZGYxY2RmNC0yYzQ4LTRhMDMtYmI2OS04MGU2MGI4NmE0YzQiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6IjYyNzBlYWRhNjAyNTQ1OGQ5MGM2NzE1NmJiYmViM2U4IiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxOTI0MTksImlhdCI6MTc4ODE3MDgxOX0.30K_PqrVoag5gdlt6T2dpW6VobwPFrw7Ok3cvyI5MuQ"
 };
 // --- Map to track remove-stock message for updates ---
 const removeStockMessages = new Map();
@@ -160,7 +160,6 @@ const logChannels = new Map();
 let refreshBatchCounter = 0;
 const activeGenerations = new Map();
 let refreshInterval = null;
-let lastRefreshLog = 0;
 
 function isPrivilegedUser(userId) {
     return userId === BOT_OWNER_ID || userId === ELLIOTT_ID;
@@ -497,7 +496,6 @@ async function refreshToken(refreshTk) {
 
                     processQueue(null, result);
                     isRefreshing = false;
-                    console.log('[TMC.LOL] 🔓 Refresh lock released');
                     return result;
                 } else {
                     console.log(`[TMC.LOL] ❌ ${url} - Status: ${response.status}`, data);
@@ -544,19 +542,7 @@ async function refreshTokenInStock() {
         return;
     }
 
-    const now = Date.now();
-    const timeUntilExpiry = tokenObj.expiresAt - now;
-    const EXPIRY_THRESHOLD = 60 * 1000;
-
-    if (timeUntilExpiry > EXPIRY_THRESHOLD) {
-        if (!lastRefreshLog || (Date.now() - lastRefreshLog) > 60000) {
-            console.log(`[TMC.LOL] ⏳ Token valid for ${formatRemainingTime(tokenObj.expiresAt)} - next check in 60s`);
-            lastRefreshLog = Date.now();
-        }
-        return;
-    }
-
-    console.log(`[TMC.LOL] 🔄 Token ${timeUntilExpiry <= 0 ? 'EXPIRED' : 'expiring soon (' + formatRemainingTime(tokenObj.expiresAt) + ')'} - refreshing now...`);
+    console.log('[TMC.LOL] 🔄 Refreshing token...');
 
     try {
         const refreshResult = await refreshToken(tokenObj.refresh);
@@ -566,7 +552,7 @@ async function refreshTokenInStock() {
             console.log(`[TMC.LOL] ⏳ ${humanExpiry(tokenStock[0].expiresAt)}`);
             lastRefreshLog = 0;
         } else {
-            console.log('[TMC.LOL] ❌ Refresh failed, will retry next cycle');
+            console.log('[TMC.LOL] ❌ Refresh failed, retrying next cycle');
             console.log('[TMC.LOL] ⚠️ Error:', refreshResult.error || 'Unknown error');
             tokenStock[0].expiresAt = getTokenExpiryMs(tokenStock[0].bearer);
             tokenStock[0].addedAt = Date.now();
@@ -577,9 +563,8 @@ async function refreshTokenInStock() {
     }
 }
 
-// --- START AUTO-REFRESH (smart, expiry-aware) ---
-// Check every 5 seconds, only refresh when token is expiring or expired.
-const AUTO_REFRESH_MS = 5 * 1000;
+// --- START AUTO-REFRESH (constant, never stops) ---
+const AUTO_REFRESH_MS = 2 * 1000;
 
 function scheduleNextRefresh() {
     if (refreshInterval) {
@@ -591,13 +576,13 @@ function scheduleNextRefresh() {
         await refreshTokenInStock();
     }, AUTO_REFRESH_MS);
 
-    console.log(`[TMC.LOL] ⏱️ Auto-refresh checks every ${AUTO_REFRESH_MS / 1000}s (refreshes only when needed)`);
+    console.log(`[TMC.LOL] ⏱️ Auto-refresh every ${AUTO_REFRESH_MS / 1000}s`);
 }
 
 function startAutoRefresh() {
     console.log('[TMC.LOL] ================================');
-    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED (smart)');
-    console.log('[TMC.LOL] ⚡ Checks every 5s, refreshes when token expires');
+    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED');
+    console.log('[TMC.LOL] ⚡ Refreshing constantly');
     console.log('[TMC.LOL] ⚡ Always retries - never gives up');
     console.log('[TMC.LOL] ================================');
     isRefreshing = false;
