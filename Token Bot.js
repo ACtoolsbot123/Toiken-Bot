@@ -51,7 +51,7 @@ const VIP_ROLE_ID = "1542337978016469093";
 const BOOSTER_ROLE_ID = "1542337979807178832";
 
 const NO_COOLDOWN_ROLE_ID = ADMIN_ROLE_ID;
-const GENERATION_COOLDOWN = 5 * 60 * 1000;
+const GENERATION_COOLDOWN = 0;
 
 // --- API CONFIGURATION ---
 const NAKAMA_SERVER = 'https://animalcompany.us-east1.nakamacloud.io';
@@ -73,7 +73,6 @@ let isRefreshing = false;
 let failedQueue = [];
 let refreshAttempts = 0;
 const MAX_REFRESH_ATTEMPTS = 10;
-let refreshBroken = false; // true when the refresh token itself is dead -> requires re-auth
 let lastRefreshExpiry = 0; // real expiry ms of the latest access token
 
 function processQueue(error, token = null) {
@@ -322,7 +321,6 @@ async function findWorkingApiUrl() {
 function forceSetOwnToken(bearer, refresh) {
     DEFAULT_TOKEN.bearer = bearer;
     DEFAULT_TOKEN.refresh_token = refresh;
-    refreshBroken = false;
     lastRefreshExpiry = getTokenExpiryMs(bearer);
     tokenStock = [{
         bearer: bearer,
@@ -360,14 +358,11 @@ async function refreshToken(refreshTk) {
         }
 
         if (isRefreshing) {
-            console.log('[TMC.LOL] ⏳ Refresh in progress, queuing...');
-            return new Promise((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            });
+            console.log('[TMC.LOL] ⏳ Refresh already in progress, skipping...');
+            return { success: false, error: 'Already refreshing' };
         }
 
         isRefreshing = true;
-        console.log('[TMC.LOL] 🔒 Refresh lock acquired');
 
         // Try all URLs
         const urlsToTry = [...API_URLS];
@@ -411,14 +406,11 @@ async function refreshToken(refreshTk) {
                 const data = await response.json();
                 console.log(`[TMC.LOL] 📦 Response from ${url}:`, JSON.stringify(data).substring(0, 200));
 
-                // Refresh token is dead -> requires full re-auth, not a retry.
+                // Refresh token failed - log but keep trying on next cycle
                 if (response.status === 401 || (data && (data.code === 401 || (data.message || '').toLowerCase().includes('refresh')))) {
-                    console.log(`[TMC.LOL] ❌ ${url} - Refresh token invalid/expired (${response.status})`);
-                    refreshBroken = true;
-                    lastError = data && data.message ? data.message : 'Refresh token invalid/expired';
-                    processQueue(new Error('Refresh token invalid/expired'), null);
-                    isRefreshing = false;
-                    return { success: false, error: lastError, broken: true };
+                    console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned ${response.status}, will retry next cycle`);
+                    lastError = data && data.message ? data.message : `Status ${response.status}`;
+                    continue;
                 }
 
                 // Check for token in different response formats
@@ -462,7 +454,6 @@ async function refreshToken(refreshTk) {
                     ACTIVE_API_URL = url;
                     apiWorking = true;
                     refreshAttempts = 0;
-                    refreshBroken = false;
                     lastRefreshExpiry = newExpiry;
 
                     if (tokenStock.length > 0) {
@@ -529,11 +520,6 @@ async function refreshToken(refreshTk) {
 async function refreshTokenInStock() {
     console.log('[TMC.LOL] 🔄 Auto-refreshing token...');
 
-    if (refreshBroken) {
-        console.log('[TMC.LOL] ⛔ Refresh token is dead - cannot refresh. Manual re-auth required (/stock_main).');
-        return;
-    }
-
     if (tokenStock.length === 0) {
         console.log('[TMC.LOL] Stock was empty, re-adding default token...');
         tokenStock.push({
@@ -560,11 +546,8 @@ async function refreshTokenInStock() {
             console.log(`[TMC.LOL] New Bearer: ${tokenStock[0].bearer.substring(0, 50)}...`);
             console.log(`[TMC.LOL] ⏳ ${humanExpiry(tokenStock[0].expiresAt)}`);
         } else {
-            console.log('[TMC.LOL] ❌ Refresh failed, keeping existing token');
+            console.log('[TMC.LOL] ❌ Refresh failed, will retry next cycle');
             console.log('[TMC.LOL] ⚠️ Error:', refreshResult.error || 'Unknown error');
-            if (refreshResult.broken) {
-                console.log('[TMC.LOL] ⛔ Refresh token is invalid/expired - manual re-auth required via /stock_main!');
-            }
             // Keep the existing token but mark its real expiry (do not fake-extend it).
             tokenStock[0].expiresAt = getTokenExpiryMs(tokenStock[0].bearer);
             tokenStock[0].addedAt = Date.now();
@@ -577,65 +560,41 @@ async function refreshTokenInStock() {
     console.log(`[TMC.LOL] Stock count: ${tokenStock.length}`);
 }
 
-// --- START AUTO-REFRESH (expiry-driven) ---
-// Refresh proactively so the token handed to users is always fresh.
-// We refresh when the access token has less than REFRESH_BEFORE_MS left,
-// but at most once per MIN_REFRESH_MS and at least once per MAX_REFRESH_MS.
-const REFRESH_BEFORE_MS = 5 * 60 * 1000;   // refresh 5 min before expiry
-const MIN_REFRESH_MS = 60 * 1000;          // never refresh more often than 1 min
-const MAX_REFRESH_MS = 30 * 60 * 1000;     // always refresh at least every 30 min
+// --- START AUTO-REFRESH (constant, no cooldown) ---
+// Refresh constantly with NO cooldown. Always try, even on expired tokens.
+const AUTO_REFRESH_MS = 10 * 1000; // refresh every 10 seconds, always
 
 function scheduleNextRefresh() {
     if (refreshInterval) {
-        clearTimeout(refreshInterval);
+        clearInterval(refreshInterval);
         refreshInterval = null;
     }
 
-    let delay = MAX_REFRESH_MS;
-
-    if (!refreshBroken && tokenStock.length > 0) {
-        const remaining = tokenStock[0].expiresAt - Date.now();
-        const untilRefresh = remaining - REFRESH_BEFORE_MS;
-        delay = Math.max(MIN_REFRESH_MS, Math.min(MAX_REFRESH_MS, untilRefresh));
-        if (delay <= 0) delay = MIN_REFRESH_MS;
-    } else {
-        // Broken refresh token: retry periodically in case it gets re-set.
-        delay = MAX_REFRESH_MS;
-    }
-
-    refreshInterval = setTimeout(async () => {
-        refreshInterval = null;
-        if (isRefreshing) {
-            console.log('[TMC.LOL] Refresh already in progress, rescheduling...');
-            scheduleNextRefresh();
-            return;
-        }
+    refreshInterval = setInterval(async () => {
         if (!apiWorking) {
             await findWorkingApiUrl();
         }
         await refreshTokenInStock();
-        scheduleNextRefresh();
-    }, delay);
+    }, AUTO_REFRESH_MS);
 
-    console.log(`[TMC.LOL] ⏱️ Next auto-refresh in ${Math.round(delay / 1000)}s`);
+    console.log(`[TMC.LOL] ⏱️ Auto-refresh set to every ${AUTO_REFRESH_MS / 1000}s`);
 }
 
 function startAutoRefresh() {
     console.log('[TMC.LOL] ================================');
-    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED (expiry-driven)');
-    console.log('[TMC.LOL] ⏳ Tokens refresh BEFORE they expire!');
+    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED');
+    console.log('[TMC.LOL] ⚡ Refreshes every 10s');
+    console.log('[TMC.LOL] ⚡ Even expired tokens get refreshed!');
     console.log('[TMC.LOL] ================================');
-
     isRefreshing = false;
     failedQueue = [];
     refreshAttempts = 0;
-    refreshBroken = false;
 
     setTimeout(async () => {
         await findWorkingApiUrl();
         await refreshTokenInStock();
         scheduleNextRefresh();
-    }, 5000);
+    }, 2000);
 }
 
 // --- PROCESS TOKEN GENERATION ---
@@ -740,9 +699,6 @@ async function processTokenGeneration(interaction, tierName) {
         
         const expiryText = humanExpiry(tokenObj.expiresAt);
         const tokenExpired = Date.now() >= tokenObj.expiresAt;
-        const warnNote = (refreshBroken || tokenExpired)
-            ? '\n\n⚠️ **WARNING:** This token may NOT work. The refresh token is invalid/expired — an admin must run `/stock_main` with a fresh token from the game.'
-            : '';
 
         const tokenData = {
             token: {
@@ -775,8 +731,8 @@ ${genId}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏳ Valid until: ${expiryText}
-🔄 Auto-Refresh: Before expiry
-👑 Credits: @elliott${warnNote}
+🔄 Auto-Refresh: Constantly
+👑 Credits: @elliott
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
         const textBuffer = Buffer.from(textVersion, 'utf-8');
@@ -790,10 +746,9 @@ ${genId}
                 '• `token.txt` - Plain text format\n\n' +
                 `🆔 **Generation ID:** \`${genId}\`\n` +
                 `⏳ **Valid for:** ${expiryText}\n` +
-                '🔄 **Auto-Refresh:** Before expiry\n\n' +
-                '👑 **Credits:** @elliott' +
-                (warnNote ? '\n\n⚠️ **This token may not work** — refresh token is dead, admin must re-auth via `/stock_main`.' : ''))
-            .setColor(tokenExpired || refreshBroken ? 0xED4245 : 0x5865F2)
+                '🔄 **Auto-Refresh:** Constantly\n\n' +
+                '👑 **Credits:** @elliott')
+            .setColor(0x5865F2)
             .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
         
         try {
@@ -804,8 +759,7 @@ ${genId}
             
             activeGenerations.delete(userId);
             return interaction.editReply({
-                content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}` +
-                    (warnNote ? '\n\n⚠️ **Warning:** refresh token is dead — this token may not work. Admin needs `/stock_main`.' : '')
+                content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}`
             });
         } catch (err) {
             console.error('[TMC.LOL] DM Error:', err);
@@ -853,11 +807,10 @@ client.once('ready', async () => {
     try {
         console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
         console.log('[TMC.LOL] 🔑 Token Generator Active');
-        console.log('[TMC.LOL] 🔄 Auto-Refresh Every 1 Minute');
+        console.log('[TMC.LOL] 🔄 Auto-Refresh Every 10 Seconds');
         console.log('[TMC.LOL] ⏳ Tokens NEVER expire!');
         console.log(`[TMC.LOL] 👑 Connected to ${client.guilds.cache.size} server(s)`);
         console.log('[TMC.LOL] ================================');
-
         isRefreshing = false;
         failedQueue = [];
 
@@ -947,9 +900,6 @@ client.on('interactionCreate', async interaction => {
 
                 const expiryText = humanExpiry(tokenObj.expiresAt);
                 const tokenExpired = Date.now() >= tokenObj.expiresAt;
-                const warnNote = (refreshBroken || tokenExpired)
-                    ? '\n\n⚠️ **WARNING:** This token may NOT work. The refresh token is invalid/expired — an admin must run `/stock_main` with a fresh token from the game.'
-                    : '';
                 
                 try {
                     const tokenData = {
@@ -962,7 +912,7 @@ client.on('interactionCreate', async interaction => {
                         },
                         message: "Thank you for using TMC.LOL Token Generator!",
                         credits: "@elliott",
-                        auto_refresh: "Refreshed automatically before expiry"
+                        auto_refresh: "Constantly refreshed"
                     };
                     
                     const jsonString = JSON.stringify(tokenData, null, 2);
@@ -983,8 +933,8 @@ ${genId}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏳ Valid until: ${expiryText}
-🔄 Auto-Refresh: Before expiry
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${warnNote}`;
+🔄 Auto-Refresh: Constantly
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
                     
                     const textBuffer = Buffer.from(textVersion, 'utf-8');
                     const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
@@ -997,9 +947,8 @@ ${genId}
                             '• `token.txt` - Plain text format\n\n' +
                             `🆔 **Generation ID:** \`${genId}\`\n` +
                             `⏳ **Valid for:** ${expiryText}\n` +
-                            '🔄 **Auto-Refresh:** Before expiry' +
-                            (warnNote ? '\n\n⚠️ **This token may not work** — refresh token is dead, admin must re-auth via `/stock_main`.' : ''))
-                        .setColor(tokenExpired || refreshBroken ? 0xED4245 : 0x5865F2)
+                            '🔄 **Auto-Refresh:** Constantly')
+                        .setColor(0x5865F2)
                         .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
                     
                     await interaction.user.send({
@@ -1008,8 +957,7 @@ ${genId}
                     });
                     
                     return interaction.editReply({
-                        content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}` +
-                            (warnNote ? '\n\n⚠️ **Warning:** refresh token is dead — this token may not work. Admin needs `/stock_main`.' : '')
+                        content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}`
                     });
                 } catch (err) {
                     return interaction.editReply({
@@ -1029,7 +977,7 @@ ${genId}
                         { name: "📋 `/gen-codes`", value: "List all active generation IDs", inline: false },
                         { name: "🗑️ `/remove-stock`", value: "Remove a token by selection", inline: false },
                         { name: "🔄 `/force_refresh`", value: "Force refresh the current token", inline: false },
-                        { name: "⏳ **Auto-Refresh**", value: "Every 1 minute - NEVER expires", inline: false },
+                        { name: "⏳ **Auto-Refresh**", value: "Every 10 seconds - NEVER expires", inline: false },
                         { name: "👑 **Credits**", value: "@elliott", inline: false }
                     )
                     .setFooter({ text: "TMC.LOL • NEVER Expires" });
@@ -1138,7 +1086,7 @@ ${genId}
                         .setDescription(
                             'Generate your token below!\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
-                            '🔄 **Auto-Refresh:** Every 1 minute\n' +
+                            '🔄 **Auto-Refresh:** Every 10 seconds\n' +
                             '⏳ **Tokens NEVER expire!**\n\n' +
                             '👑 **Credits:** @elliott'
                         )
@@ -1182,9 +1130,7 @@ ${genId}
                             return interaction.editReply({ embeds: [embed] });
                         } else {
                             return interaction.editReply({
-                                content: refreshResult.broken
-                                    ? '⛔ **Refresh token is dead** — please run `/stock_main` with a fresh token from the game.'
-                                    : '⚠️ **Refresh failed** - Will retry automatically soon.'
+                                content: '⚠️ **Refresh failed** - Will retry automatically soon.'
                             });
                         }
                     } catch (err) {
@@ -1243,7 +1189,6 @@ ${genId}
                 }
 
                 if (commandName === 'reset-stock') {
-                    refreshBroken = false;
                     lastRefreshExpiry = getTokenExpiryMs(DEFAULT_TOKEN.bearer);
                     tokenStock = [{
                         bearer: DEFAULT_TOKEN.bearer,
@@ -1309,7 +1254,7 @@ ${genId}
                             .setDescription(
                                 'Generate your token below!\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
-                                '🔄 **Auto-Refresh:** Every 1 minute\n' +
+                                '🔄 **Auto-Refresh:** Every 10 seconds\n' +
                                 '⏳ **Tokens NEVER expire!**'
                             )
                             .setColor(0x5865F2)
@@ -1569,7 +1514,7 @@ ${genId}
                             { name: '📋 Refresh Token', value: `\`\`\`\n${refresh}\n\`\`\``, inline: false },
                             { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
                             { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
-                            { name: '🔄 Auto-Refresh', value: 'Every 1 minute', inline: true }
+                            { name: '🔄 Auto-Refresh', value: 'Every 10 seconds', inline: true }
                         )
                         .setTimestamp()
                         .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
@@ -1734,7 +1679,7 @@ const server = http.createServer((req, res) => {
         return;
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 1 minute.\nTokens NEVER expire!\nCredits to @elliott\n');
+    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 10 seconds.\nTokens NEVER expire!\nCredits to @elliott\n');
 });
 
 const PORT = process.env.PORT || 10000;
