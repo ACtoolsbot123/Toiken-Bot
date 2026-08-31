@@ -88,7 +88,7 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-"bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxODY2NDksImlhdCI6MTc4ODE2NTA0OX0.R38AHefy86BPZqF8707MAZfVxTJGvPhFPDEOH0_PDsc"
 };
 // --- Map to track remove-stock message for updates ---
@@ -564,6 +564,7 @@ async function refreshTokenInStock() {
         if (refreshResult.success) {
             console.log('[TMC.LOL] ✅ Token refreshed!');
             console.log(`[TMC.LOL] ⏳ ${humanExpiry(tokenStock[0].expiresAt)}`);
+            lastRefreshLog = 0;
         } else {
             console.log('[TMC.LOL] ❌ Refresh failed, will retry next cycle');
             console.log('[TMC.LOL] ⚠️ Error:', refreshResult.error || 'Unknown error');
