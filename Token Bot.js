@@ -298,14 +298,13 @@ async function findWorkingApiUrl() {
             
             clearTimeout(timeoutId);
             
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                console.log(`[TMC.LOL] ✅ Found working API: ${url}`);
+            if (response.status < 500) {
+                console.log(`[TMC.LOL] ✅ API reachable: ${url} (status ${response.status})`);
                 ACTIVE_API_URL = url;
                 apiWorking = true;
                 return url;
             } else {
-                console.log(`[TMC.LOL] ❌ Not a JSON API: ${url}`);
+                console.log(`[TMC.LOL] ❌ Server error: ${url} (status ${response.status})`);
             }
         } catch (err) {
             console.log(`[TMC.LOL] ❌ Failed: ${url} - ${err.message}`);
@@ -584,9 +583,6 @@ function scheduleNextRefresh() {
     }
 
     refreshInterval = setInterval(async () => {
-        if (!apiWorking) {
-            await findWorkingApiUrl();
-        }
         await refreshTokenInStock();
     }, AUTO_REFRESH_MS);
 
