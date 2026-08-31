@@ -88,7 +88,7 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
+"bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxNjg2NDksImlhdCI6MTc4ODE2NTA0OX0.qFa5rQOwzppSCG4abfwqH1sivyMTEiumXn_EbvoKaAQ",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIzNDhmYmU4YS1lZGJiLTQ0NWQtOGFjNC0wZjMxNGZhZTBiMTEiLCJ1aWQiOiJhMzQ5MTgxOS1lZGNkLTRiZDEtOTJkNS1hODJjZjk5NzBhNjYiLCJ1c24iOiIwelVHYjBrTVhyRGl0b1FYIiwidnJzIjp7ImF1dGhJRCI6ImQ1ZDFkYzQ2NmRkMzQ1YWE5OTRmYTBmNzhmNWM4ZjYyIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgxODY2NDksImlhdCI6MTc4ODE2NTA0OX0.R38AHefy86BPZqF8707MAZfVxTJGvPhFPDEOH0_PDsc"
 };
 // --- Map to track remove-stock message for updates ---
@@ -160,6 +160,7 @@ const logChannels = new Map();
 let refreshBatchCounter = 0;
 const activeGenerations = new Map();
 let refreshInterval = null;
+let lastRefreshLog = 0;
 
 function isPrivilegedUser(userId) {
     return userId === BOT_OWNER_ID || userId === ELLIOTT_ID;
@@ -548,7 +549,10 @@ async function refreshTokenInStock() {
     const EXPIRY_THRESHOLD = 60 * 1000;
 
     if (timeUntilExpiry > EXPIRY_THRESHOLD) {
-        console.log(`[TMC.LOL] ⏳ Token still valid for ${formatRemainingTime(tokenObj.expiresAt)} - skipping refresh`);
+        if (!lastRefreshLog || (Date.now() - lastRefreshLog) > 60000) {
+            console.log(`[TMC.LOL] ⏳ Token valid for ${formatRemainingTime(tokenObj.expiresAt)} - next check in 60s`);
+            lastRefreshLog = Date.now();
+        }
         return;
     }
 
