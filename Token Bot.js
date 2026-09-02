@@ -85,7 +85,7 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwYWRlYjBlNi1kMDM4LTQ3ZWQtYTMyNS00ZGRiZjY3MmZlNzIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjRkZThkMjI3ZmEzZTRiYTVhOTk4NDdhNjY3MjM5N2RjIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzNzMxMjQsImlhdCI6MTc4ODM2OTUyNH0.KoILuPnIYY0UCdlPerVE83w_rjRr7-S_vE-NEHnXb8Q",
+"bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwYWRlYjBlNi1kMDM4LTQ3ZWQtYTMyNS00ZGRiZjY3MmZlNzIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjRkZThkMjI3ZmEzZTRiYTVhOTk4NDdhNjY3MjM5N2RjIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzNzMxMjQsImlhdCI6MTc4ODM2OTUyNH0.KoILuPnIYY0UCdlPerVE83w_rjRr7-S_vE-NEHnXb8Q",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwYWRlYjBlNi1kMDM4LTQ3ZWQtYTMyNS00ZGRiZjY3MmZlNzIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjRkZThkMjI3ZmEzZTRiYTVhOTk4NDdhNjY3MjM5N2RjIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzOTExMjQsImlhdCI6MTc4ODM2OTUyNH0.-DqEaglmm9j6_VLiYZ2Ml1GiZP3999I3HZ6ECpkA-sc"
 };
 
@@ -276,7 +276,7 @@ function forceSetOwnToken(bearer, refresh) {
         bearer: bearer,
         refresh: refresh,
         addedAt: Date.now(),
-        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
     }];
     console.log('[TMC.LOL] ✅ Token manually set!');
     console.log('[TMC.LOL] ⏳ Token will NEVER expire!');
@@ -290,12 +290,12 @@ async function validateSteamToken(bearerToken, retries = 3) {
         valid: true,
         status: 200,
         data: { valid: true },
-        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000), // NEVER EXPIRES
+        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000),
         message: 'Token is valid - NEVER expires'
     };
 }
 
-// --- TOKEN REFRESH SYSTEM - GENERATES NEW TOKEN ---
+// --- TOKEN REFRESH SYSTEM ---
 async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
@@ -310,7 +310,6 @@ async function refreshToken(refreshTk) {
         isRefreshing = true;
         console.log('[TMC.LOL] 🔒 Refresh lock acquired');
 
-        // Try all URLs
         const urlsToTry = [...API_URLS];
         if (ACTIVE_API_URL && urlsToTry.includes(ACTIVE_API_URL)) {
             urlsToTry.splice(urlsToTry.indexOf(ACTIVE_API_URL), 1);
