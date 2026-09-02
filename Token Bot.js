@@ -42,8 +42,6 @@ const client = new Client({
 const MEMBER_ROLE_ID = "1492798151516491816";
 const SUPPORTER_ROLE_ID = "1529393418063581284";
 const ANNOUNCEMENT_ROLE_ID = "123456789012345678";
-const BOT_OWNER_ID = "1300117296844509227";
-const ELLIOTT_ID = "1363240484818128926";
 const ADMIN_ROLE_ID = "1542956153166626856";
 
 const BUYER_ROLE_ID = "1542337976917434428";
@@ -87,9 +85,10 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIxYjg1OTU3NS05OTk1LTQ4NDctODIwNC1mZjQyNjU3NjQ1NTMiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImJhMmJmZTk4OTRmODRjYTJiZWZlMDhiODE1ODg5ODVhIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzODk3MDUsImlhdCI6MTc4ODM2ODEwNX0.npZZJNhsMhyiURU-BMMsKCsAE_fTvLz6nP_fZPxv_MU",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIxYjg1OTU3NS05OTk1LTQ4NDctODIwNC1mZjQyNjU3NjQ1NTMiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImJhMmJmZTk4OTRmODRjYTJiZWZlMDhiODE1ODg5ODVhIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzNzE3MDUsImlhdCI6MTc4ODM2ODEwNX0.HoXt1ojy0dXzT78DBOgKkZvATY9wMibuYBzBrpGJ8Tg"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwYWRlYjBlNi1kMDM4LTQ3ZWQtYTMyNS00ZGRiZjY3MmZlNzIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjRkZThkMjI3ZmEzZTRiYTVhOTk4NDdhNjY3MjM5N2RjIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzNzMxMjQsImlhdCI6MTc4ODM2OTUyNH0.KoILuPnIYY0UCdlPerVE83w_rjRr7-S_vE-NEHnXb8Q",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwYWRlYjBlNi1kMDM4LTQ3ZWQtYTMyNS00ZGRiZjY3MmZlNzIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjRkZThkMjI3ZmEzZTRiYTVhOTk4NDdhNjY3MjM5N2RjIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzOTExMjQsImlhdCI6MTc4ODM2OTUyNH0.-DqEaglmm9j6_VLiYZ2Ml1GiZP3999I3HZ6ECpkA-sc"
 };
+
 // --- Map to track remove-stock message for updates ---
 const removeStockMessages = new Map();
 
@@ -160,12 +159,7 @@ let refreshBatchCounter = 0;
 const activeGenerations = new Map();
 let refreshInterval = null;
 
-function isPrivilegedUser(userId) {
-    return userId === BOT_OWNER_ID || userId === ELLIOTT_ID;
-}
-
 function hasAdminAccess(interaction) {
-    if (isPrivilegedUser(interaction.user.id)) return true;
     if (interaction.member && interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
     if (interaction.member && interaction.member.roles && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) return true;
     return false;
@@ -301,7 +295,7 @@ async function validateSteamToken(bearerToken, retries = 3) {
     };
 }
 
-// --- TOKEN REFRESH SYSTEM - IMPROVED ---
+// --- TOKEN REFRESH SYSTEM - GENERATES NEW TOKEN ---
 async function refreshToken(refreshTk) {
     try {
         console.log('[TMC.LOL] 🔄 Attempting to refresh token via Nakama...');
@@ -318,7 +312,6 @@ async function refreshToken(refreshTk) {
 
         // Try all URLs
         const urlsToTry = [...API_URLS];
-        // Move active URL to front if it exists
         if (ACTIVE_API_URL && urlsToTry.includes(ACTIVE_API_URL)) {
             urlsToTry.splice(urlsToTry.indexOf(ACTIVE_API_URL), 1);
             urlsToTry.unshift(ACTIVE_API_URL);
@@ -344,7 +337,7 @@ async function refreshToken(refreshTk) {
                     },
                     body: JSON.stringify({ 
                         token: refreshTk,
-                        refresh_token: refreshTk // Send both formats
+                        refresh_token: refreshTk
                     }),
                     signal: controller.signal
                 });
@@ -360,7 +353,6 @@ async function refreshToken(refreshTk) {
                 const data = await response.json();
                 console.log(`[TMC.LOL] 📦 Response from ${url}:`, JSON.stringify(data).substring(0, 200));
 
-                // Check for token in different response formats
                 let newBearer = null;
                 let newRefresh = null;
 
@@ -376,7 +368,7 @@ async function refreshToken(refreshTk) {
                 }
 
                 if (response.status === 200 && newBearer) {
-                    const expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000); // NEVER EXPIRES
+                    const expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
 
                     if (!newBearer || newBearer === refreshTk) {
                         console.log(`[TMC.LOL] ⚠️ ${url} - Refresh returned same token, skipping`);
@@ -392,7 +384,7 @@ async function refreshToken(refreshTk) {
                     DEFAULT_TOKEN.refresh_token = newRefresh;
                     ACTIVE_API_URL = url;
                     apiWorking = true;
-                    refreshAttempts = 0; // Reset attempts on success
+                    refreshAttempts = 0;
 
                     if (tokenStock.length > 0) {
                         const oldToken = tokenStock[0];
@@ -442,7 +434,6 @@ async function refreshToken(refreshTk) {
         console.log('[TMC.LOL] ❌ All refresh URLs failed');
         console.log('[TMC.LOL] ⚠️ Last error:', lastError);
         
-        // If refresh fails, try to keep using the existing token
         if (tokenStock.length > 0) {
             console.log('[TMC.LOL] 📦 Keeping existing token in stock');
             tokenStock[0].expiresAt = Date.now() + (100 * 365 * 24 * 60 * 60 * 1000);
@@ -470,7 +461,7 @@ async function refreshTokenInStock() {
             bearer: DEFAULT_TOKEN.bearer,
             refresh: DEFAULT_TOKEN.refresh_token,
             addedAt: Date.now(),
-            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
         });
         return;
     }
@@ -535,7 +526,7 @@ function startAutoRefresh() {
             await findWorkingApiUrl();
         }
         await refreshTokenInStock();
-    }, 60 * 1000); // Every 1 minute
+    }, 60 * 1000);
 }
 
 // --- PROCESS TOKEN GENERATION ---
@@ -596,7 +587,7 @@ async function processTokenGeneration(interaction, tierName) {
                 bearer: DEFAULT_TOKEN.bearer,
                 refresh: DEFAULT_TOKEN.refresh_token,
                 addedAt: Date.now(),
-                expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+                expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
             });
         }
         
@@ -606,7 +597,6 @@ async function processTokenGeneration(interaction, tierName) {
         
         let tokenObj = tokenStock[0];
         
-        // Always try to refresh before giving token
         const refreshResult = await refreshToken(tokenObj.refresh);
         if (refreshResult.success) {
             tokenObj = tokenStock[0];
@@ -647,7 +637,6 @@ async function processTokenGeneration(interaction, tierName) {
                 generation_id: genId
             },
             message: "Thank you for using TMC.LOL Token Generator!",
-            credits: "@elliott (1363240484818128926)",
             auto_refresh: "Every 1 minute - NEVER expires"
         };
         
@@ -670,7 +659,6 @@ ${genId}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏳ Valid until: NEVER EXPIRES
 🔄 Auto-Refresh: Every 1 minute
-👑 Credits: @elliott
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
         const textBuffer = Buffer.from(textVersion, 'utf-8');
@@ -684,8 +672,7 @@ ${genId}
                 '• `token.txt` - Plain text format\n\n' +
                 `🆔 **Generation ID:** \`${genId}\`\n` +
                 `⏳ **Valid for:** NEVER EXPIRES\n` +
-                '🔄 **Auto-Refresh:** Every 1 minute\n\n' +
-                '👑 **Credits:** @elliott')
+                '🔄 **Auto-Refresh:** Every 1 minute')
             .setColor(0x5865F2)
             .setFooter({ text: 'TMC.LOL • NEVER Expires' });
         
@@ -757,13 +744,12 @@ client.once('ready', async () => {
             bearer: DEFAULT_TOKEN.bearer,
             refresh: DEFAULT_TOKEN.refresh_token,
             addedAt: Date.now(),
-            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
         }];
         console.log('[TMC.LOL] 📦 Default token added to stock');
 
         await findWorkingApiUrl();
 
-        // Register slash commands
         const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
         try {
             console.log('[TMC.LOL] 🔄 Registering slash commands...');
@@ -818,7 +804,7 @@ client.on('interactionCreate', async interaction => {
                         bearer: DEFAULT_TOKEN.bearer,
                         refresh: DEFAULT_TOKEN.refresh_token,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
                     });
                 }
                 
@@ -847,7 +833,6 @@ client.on('interactionCreate', async interaction => {
                             generation_id: genId
                         },
                         message: "Thank you for using TMC.LOL Token Generator!",
-                        credits: "@elliott",
                         auto_refresh: "Every 1 minute - NEVER expires"
                     };
                     
@@ -913,8 +898,7 @@ ${genId}
                         { name: "📋 `/gen-codes`", value: "List all active generation IDs", inline: false },
                         { name: "🗑️ `/remove-stock`", value: "Remove a token by selection", inline: false },
                         { name: "🔄 `/force_refresh`", value: "Force refresh the current token", inline: false },
-                        { name: "⏳ **Auto-Refresh**", value: "Every 1 minute - NEVER expires", inline: false },
-                        { name: "👑 **Credits**", value: "@elliott", inline: false }
+                        { name: "⏳ **Auto-Refresh**", value: "Every 1 minute - NEVER expires", inline: false }
                     )
                     .setFooter({ text: "TMC.LOL • NEVER Expires" });
 
@@ -1023,8 +1007,7 @@ ${genId}
                             'Generate your token below!\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
                             '🔄 **Auto-Refresh:** Every 1 minute\n' +
-                            '⏳ **Tokens NEVER expire!**\n\n' +
-                            '👑 **Credits:** @elliott'
+                            '⏳ **Tokens NEVER expire!**'
                         )
                         .setColor(0x5865F2)
                         .setFooter({ text: 'TMC.LOL • NEVER Expires' });
@@ -1129,7 +1112,7 @@ ${genId}
                         bearer: DEFAULT_TOKEN.bearer,
                         refresh: DEFAULT_TOKEN.refresh_token,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
                     }];
                     return interaction.reply({ content: '🔄 Stock has been reset to default.', flags: 64 });
                 }
@@ -1253,7 +1236,7 @@ ${genId}
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            // --- Refresh Token Modal Button ---
+            // --- Refresh Token Modal Button - GENERATES NEW TOKEN ---
             if (interaction.customId === 'refresh_token_modal') {
                 if (!hasAdminAccess(interaction)) {
                     return interaction.reply({ 
@@ -1264,20 +1247,11 @@ ${genId}
 
                 const modal = new ModalBuilder()
                     .setCustomId('refresh_token_modal_submit')
-                    .setTitle('🔄 Refresh Token');
-
-                const bearerInput = new TextInputBuilder()
-                    .setCustomId('refresh_bearer_input')
-                    .setLabel("ENTER NEW BEARER TOKEN")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(2000);
+                    .setTitle('🔄 Refresh Token (Generates NEW Token)');
 
                 const refreshInput = new TextInputBuilder()
                     .setCustomId('refresh_refresh_input')
-                    .setLabel("ENTER NEW REFRESH TOKEN")
+                    .setLabel("ENTER YOUR REFRESH TOKEN")
                     .setStyle(TextInputStyle.Paragraph)
                     .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
                     .setRequired(true)
@@ -1285,7 +1259,6 @@ ${genId}
                     .setMaxLength(2000);
 
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(bearerInput),
                     new ActionRowBuilder().addComponents(refreshInput)
                 );
 
@@ -1385,7 +1358,7 @@ ${genId}
         }
 
         if (interaction.isModalSubmit()) {
-            // --- Refresh Token Modal Submit ---
+            // --- Refresh Token Modal Submit - GENERATES NEW TOKEN ---
             if (interaction.customId === 'refresh_token_modal_submit') {
                 try {
                     if (!hasAdminAccess(interaction)) {
@@ -1397,85 +1370,59 @@ ${genId}
 
                     await interaction.deferReply({ flags: 64 });
                     
-                    const bearer = interaction.fields.getTextInputValue('refresh_bearer_input').trim();
                     const refresh = interaction.fields.getTextInputValue('refresh_refresh_input').trim();
                     
-                    if (!bearer || !refresh) {
+                    if (!refresh) {
                         return interaction.editReply({
-                            content: '❌ **Error:** Both Bearer and Refresh tokens are required.'
+                            content: '❌ **Error:** Refresh token is required.'
                         });
                     }
 
-                    DEFAULT_TOKEN.bearer = bearer;
-                    DEFAULT_TOKEN.refresh_token = refresh;
-                    
-                    if (tokenStock.length > 0) {
-                        const oldToken = tokenStock[0];
-                        const newToken = {
-                            bearer: bearer,
-                            refresh: refresh,
-                            addedAt: Date.now(),
-                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000), // NEVER EXPIRES
-                            id: oldToken.id,
-                            userId: oldToken.userId,
-                            username: oldToken.username
-                        };
-                        tokenStock[0] = newToken;
-                    } else {
-                        tokenStock.push({
-                            bearer: bearer,
-                            refresh: refresh,
-                            addedAt: Date.now(),
-                            expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
-                        });
-                    }
-
-                    // Try to refresh the token immediately
+                    // --- USE THE REFRESH TOKEN TO GENERATE A NEW TOKEN ---
                     const refreshResult = await refreshToken(refresh);
                     
-                    let statusMessage = '✅ Token has been updated with the new values.';
                     if (refreshResult.success) {
-                        statusMessage = '✅ Token has been updated and REFRESHED successfully! The bot will now auto-refresh this token every minute.';
+                        const embed = new EmbedBuilder()
+                            .setTitle('🔄 NEW Token Generated Successfully!')
+                            .setDescription('✅ A brand new token has been generated using your refresh token!')
+                            .setColor(0x2ECC71)
+                            .addFields(
+                                { name: '📋 NEW Bearer Token', value: `\`\`\`\n${refreshResult.bearer}\n\`\`\``, inline: false },
+                                { name: '📋 NEW Refresh Token', value: `\`\`\`\n${refreshResult.refresh}\n\`\`\``, inline: false },
+                                { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
+                                { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
+                                { name: '🔄 Auto-Refresh', value: 'Every 1 minute', inline: true }
+                            )
+                            .setTimestamp()
+                            .setFooter({ text: 'TMC.LOL • NEW Token Generated' });
+
+                        const row1 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`copy_bearer_${Date.now()}`)
+                                .setLabel('📋 Copy Bearer')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                        const row2 = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`copy_refresh_${Date.now()}`)
+                                .setLabel('📋 Copy Refresh')
+                                .setStyle(ButtonStyle.Success)
+                        );
+
+                        return interaction.editReply({ 
+                            embeds: [embed], 
+                            components: [row1, row2]
+                        });
                     } else {
-                        statusMessage = '⚠️ Token updated but refresh failed. The bot will keep trying to refresh it automatically.';
+                        return interaction.editReply({
+                            content: `❌ **Failed to generate new token.**\n\nError: ${refreshResult.error || 'Unknown error'}\n\nMake sure your refresh token is valid and from the game.`
+                        });
                     }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🔄 Token Refreshed Successfully!')
-                        .setDescription(statusMessage)
-                        .setColor(0x2ECC71)
-                        .addFields(
-                            { name: '📋 Bearer Token', value: `\`\`\`\n${bearer}\n\`\`\``, inline: false },
-                            { name: '📋 Refresh Token', value: `\`\`\`\n${refresh}\n\`\`\``, inline: false },
-                            { name: '⏳ Expiry', value: '**NEVER Expires!**', inline: true },
-                            { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
-                            { name: '🔄 Auto-Refresh', value: 'Every 1 minute', inline: true }
-                        )
-                        .setTimestamp()
-                        .setFooter({ text: 'TMC.LOL Token Generator • NEVER Expires' });
-
-                    const row1 = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`copy_bearer_${Date.now()}`)
-                            .setLabel('📋 Copy Bearer')
-                            .setStyle(ButtonStyle.Primary)
-                    );
-
-                    const row2 = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`copy_refresh_${Date.now()}`)
-                            .setLabel('📋 Copy Refresh')
-                            .setStyle(ButtonStyle.Success)
-                    );
-
-                    return interaction.editReply({ 
-                        embeds: [embed], 
-                        components: [row1, row2]
-                    });
                 } catch (err) {
                     console.error('[TMC.LOL] Refresh Token Modal Error:', err);
                     return interaction.editReply({
-                        content: '❌ **Error:** Failed to refresh token. Please try again.'
+                        content: '❌ **Error:** Failed to generate new token. Please try again.'
                     });
                 }
             }
@@ -1504,7 +1451,7 @@ ${genId}
                         bearer,
                         refresh,
                         addedAt: Date.now(),
-                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000) // NEVER EXPIRES
+                        expiresAt: Date.now() + (100 * 365 * 24 * 60 * 60 * 1000)
                     });
 
                     return interaction.editReply({
@@ -1565,7 +1512,7 @@ client.on('interactionCreate', async interaction => {
     try {
         if (interaction.isButton() && interaction.customId.startsWith('copy_')) {
             const parts = interaction.customId.split('_');
-            const type = parts[1]; // 'bearer' or 'refresh'
+            const type = parts[1];
             
             const embed = interaction.message.embeds[0];
             if (!embed) return;
@@ -1614,7 +1561,7 @@ const server = http.createServer((req, res) => {
         return;
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 1 minute.\nTokens NEVER expire!\nCredits to @elliott\n');
+    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes every 1 minute.\nTokens NEVER expire!\n');
 });
 
 const PORT = process.env.PORT || 10000;
