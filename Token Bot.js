@@ -589,7 +589,7 @@ function startAutoRefresh() {
     }, 5000);
 }
 
-// --- PROCESS TOKEN GENERATION ---
+// --- PROCESS TOKEN GENERATION - FIXED DM ERROR ---
 async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
     const member = interaction.member;
@@ -626,14 +626,24 @@ async function processTokenGeneration(interaction, tierName) {
     
     activeGenerations.set(userId, Date.now());
     
+    // --- FIX: Check DM access BEFORE generating token ---
+    let dmEnabled = true;
     try {
         const testDM = await interaction.user.send({ content: '🔍 Verifying DM connection...' });
         await testDM.delete();
     } catch (dmError) {
+        dmEnabled = false;
         activeGenerations.delete(userId);
+        
+        // Send the token in the channel as an ephemeral message instead
         return interaction.editReply({
-            content: '❌ **DM Error:** I cannot send you a direct message.\n\n' +
-                     'Please enable DMs in your settings and try again!'
+            content: '❌ **I cannot send you a direct message!**\n\n' +
+                     'Please enable DMs and try again, or use the button below to get your token in this channel.\n\n' +
+                     '**How to enable DMs:**\n' +
+                     '1. Go to **User Settings** (⚙️)\n' +
+                     '2. Click **Privacy & Safety**\n' +
+                     '3. Enable **"Allow direct messages from server members"**\n\n' +
+                     '**Or click the button below to get your token here.**'
         });
     }
     
@@ -752,8 +762,23 @@ ${genId}
         } catch (err) {
             console.error('[TMC.LOL] DM Error:', err);
             activeGenerations.delete(userId);
+            
+            // --- FIX: If DM fails, send the token as an ephemeral message in the channel ---
+            const fallbackEmbed = new EmbedBuilder()
+                .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
+                .setDescription('⚠️ **Could not send DM!** Here is your token:\n\n' +
+                    '📁 **Download the attached files below**\n\n' +
+                    `🆔 **Generation ID:** \`${genId}\`\n` +
+                    `⏳ **Valid for:** ${expiryText}\n` +
+                    '🔄 **Auto-Refresh:** Before expiry')
+                .setColor(0xFEE75C)
+                .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
+            
+            // Send as ephemeral message with attachments
             return interaction.editReply({
-                content: '❌ **Error:** Could not send token via DM. Make sure your DMs are open.'
+                embeds: [fallbackEmbed],
+                files: [attachment, textAttachment],
+                content: '📩 **Token sent here because DMs are closed.** Please enable DMs for future tokens!'
             });
         }
         
@@ -860,7 +885,6 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ embeds: [embed] });
             }
 
-            // --- PUBLIC TOKEN DONATION COMMAND ---
             if (commandName === 'donate-token') {
                 await interaction.deferReply({ flags: 64 });
                 
@@ -873,7 +897,6 @@ client.on('interactionCreate', async interaction => {
                     });
                 }
 
-                // Validate the token before adding to stock
                 const validation = await validateSteamToken(bearer);
                 
                 if (!validation.valid) {
@@ -882,7 +905,6 @@ client.on('interactionCreate', async interaction => {
                     });
                 }
 
-                // Add the donated token to stock
                 tokenStock.push({
                     bearer: bearer,
                     refresh: refresh,
@@ -988,17 +1010,36 @@ ${genId}
                         .setColor(tokenExpired ? 0xED4245 : 0x5865F2)
                         .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
                     
-                    await interaction.user.send({
-                        embeds: [embed],
-                        files: [attachment, textAttachment]
-                    });
-                    
-                    return interaction.editReply({
-                        content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}`
-                    });
+                    try {
+                        await interaction.user.send({
+                            embeds: [embed],
+                            files: [attachment, textAttachment]
+                        });
+                        
+                        return interaction.editReply({
+                            content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}`
+                        });
+                    } catch (dmErr) {
+                        // Fallback: send in channel as ephemeral
+                        const fallbackEmbed = new EmbedBuilder()
+                            .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
+                            .setDescription('⚠️ **Could not send DM!** Here is your token:\n\n' +
+                                '📁 **Download the attached files below**\n\n' +
+                                `🆔 **Generation ID:** \`${genId}\`\n` +
+                                `⏳ **Valid for:** ${expiryText}\n` +
+                                '🔄 **Auto-Refresh:** Before expiry')
+                            .setColor(0xFEE75C)
+                            .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
+                        
+                        return interaction.editReply({
+                            embeds: [fallbackEmbed],
+                            files: [attachment, textAttachment],
+                            content: '📩 **Token sent here because DMs are closed.** Please enable DMs for future tokens!'
+                        });
+                    }
                 } catch (err) {
                     return interaction.editReply({
-                        content: '❌ **DM Failed:** Please open your DMs to receive tokens.'
+                        content: '❌ **Error generating token. Please try again.**'
                     });
                 }
             }
@@ -1364,7 +1405,7 @@ ${genId}
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            // --- Refresh Token Modal Button - PUBLIC (no admin required) ---
+            // --- Refresh Token Modal Button - PUBLIC ---
             if (interaction.customId === 'refresh_token_modal') {
                 const modal = new ModalBuilder()
                     .setCustomId('refresh_token_modal_submit')
@@ -1521,7 +1562,7 @@ ${genId}
         }
 
         if (interaction.isModalSubmit()) {
-            // --- Refresh Token Modal Submit - PUBLIC (no admin required) ---
+            // --- Refresh Token Modal Submit - PUBLIC ---
             if (interaction.customId === 'refresh_token_modal_submit') {
                 try {
                     await interaction.deferReply({ flags: 64 });
@@ -1535,7 +1576,6 @@ ${genId}
                         });
                     }
 
-                    // Validate the token first
                     const validation = await validateSteamToken(bearer);
                     
                     if (!validation.valid) {
@@ -1544,7 +1584,6 @@ ${genId}
                         });
                     }
 
-                    // Use the refresh token to generate a NEW token
                     const refreshResult = await refreshToken(refresh);
                     
                     if (refreshResult.success) {
@@ -1609,7 +1648,6 @@ ${genId}
                         });
                     }
 
-                    // Validate the token before adding to stock
                     const validation = await validateSteamToken(bearer);
                     
                     if (!validation.valid) {
@@ -1618,7 +1656,6 @@ ${genId}
                         });
                     }
 
-                    // Add the donated token to stock
                     tokenStock.push({
                         bearer: bearer,
                         refresh: refresh,
