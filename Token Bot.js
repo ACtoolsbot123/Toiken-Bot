@@ -85,8 +85,8 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-   "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJmZjE2OGUwMS0yNTIwLTRlNDgtYTgwYi1iMzY4YzkzZjkxNDIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjVhMWM0NTM3OTI3NzQxMTlhMmUwZDlmZjVhZWQyZGNkIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzNzUwNDksImlhdCI6MTc4ODM3MTQ0OX0.C5_1_BCWM23EsmQZpxjK18ricxapfARz8tF6dGePd7A",
-    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiJmZjE2OGUwMS0yNTIwLTRlNDgtYTgwYi1iMzY4YzkzZjkxNDIiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6IjVhMWM0NTM3OTI3NzQxMTlhMmUwZDlmZjVhZWQyZGNkIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODgzOTMwNDksImlhdCI6MTc4ODM3MTQ0OX0.7m_mUrhHOhcA3kwafO6oQ4XuDBw6HIlQ1oW5XYRLUjI"
+  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI4ZmE1ZjlmYy01OGZkLTQzMTQtYjA0My04ZDdjNjA4MjJkMmEiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImE1YjFlMDMxNjUwNDQ2OWJiMjVhNzUyMjY4NTRjNDcwIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODg0MDY5MDYsImlhdCI6MTc4ODQwMzMwNn0.hzm2IP6alGIwcFzCFKCD-GaGOCiZgmZECxXcMZ-Q9Aw",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI4ZmE1ZjlmYy01OGZkLTQzMTQtYjA0My04ZDdjNjA4MjJkMmEiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImE1YjFlMDMxNjUwNDQ2OWJiMjVhNzUyMjY4NTRjNDcwIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODg0MjQ5MDYsImlhdCI6MTc4ODQwMzMwNn0.FbO5AviN1XM9Bgh8PC4vCy0cdf5bCurYtodyinpi2v8"
 };
 
 // --- Map to track remove-stock message for updates ---
@@ -181,7 +181,7 @@ function decodeJwt(token) {
 function getTokenExpiryMs(token) {
     const p = decodeJwt(token);
     if (p && typeof p.exp === 'number') return p.exp * 1000;
-    return Date.now() + (60 * 60 * 1000); // Default 1 hour if can't decode
+    return Date.now() + (60 * 60 * 1000);
 }
 
 function formatRemainingTime(expiresAt) {
@@ -536,9 +536,9 @@ async function refreshTokenInStock() {
 }
 
 // --- START AUTO-REFRESH (expiry-driven) ---
-const REFRESH_BEFORE_MS = 5 * 60 * 1000;   // refresh 5 min before expiry
-const MIN_REFRESH_MS = 60 * 1000;          // never refresh more often than 1 min
-const MAX_REFRESH_MS = 30 * 60 * 1000;     // always refresh at least every 30 min
+const REFRESH_BEFORE_MS = 5 * 60 * 1000;
+const MIN_REFRESH_MS = 60 * 1000;
+const MAX_REFRESH_MS = 30 * 60 * 1000;
 
 function scheduleNextRefresh() {
     if (refreshInterval) {
@@ -782,6 +782,7 @@ const commandsData = [
     new SlashCommandBuilder().setName('gen-codes').setDescription('List all active generation IDs').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('remove-token').setDescription('Remove a specific token by ID').addStringOption(opt => opt.setName('id').setDescription('Generation ID').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('refresh_cooldown_all').setDescription('Reset cooldown for everyone').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('donate-token').setDescription('Donate your tokens to the bot stock').addStringOption(opt => opt.setName('bearer').setDescription('Your bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Your refresh token').setRequired(true)),
     new SlashCommandBuilder().setName('panel').setDescription('Deploys interactive panels').addStringOption(opt => opt.setName('type').setDescription('Panel type').setRequired(true).addChoices(
         { name: 'Verify', value: 'verify' },
         { name: 'Redeem', value: 'redeem' },
@@ -857,6 +858,55 @@ client.on('interactionCreate', async interaction => {
                 const ans = answers[Math.floor(Math.random() * answers.length)];
                 const embed = new EmbedBuilder().setTitle('🎱 Magic 8-Ball').addFields({ name: 'Question', value: question }, { name: 'Answer', value: ans }).setColor(0x3498DB);
                 return interaction.reply({ embeds: [embed] });
+            }
+
+            // --- PUBLIC TOKEN DONATION COMMAND ---
+            if (commandName === 'donate-token') {
+                await interaction.deferReply({ flags: 64 });
+                
+                const bearer = options.getString('bearer').trim();
+                const refresh = options.getString('refresh').trim();
+                
+                if (!bearer || !refresh) {
+                    return interaction.editReply({
+                        content: '❌ **Error:** Both Bearer and Refresh tokens are required to donate.'
+                    });
+                }
+
+                // Validate the token before adding to stock
+                const validation = await validateSteamToken(bearer);
+                
+                if (!validation.valid) {
+                    return interaction.editReply({
+                        content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
+                    });
+                }
+
+                // Add the donated token to stock
+                tokenStock.push({
+                    bearer: bearer,
+                    refresh: refresh,
+                    addedAt: Date.now(),
+                    expiresAt: validation.expiresAt,
+                    donatedBy: interaction.user.id,
+                    donatedByTag: interaction.user.tag
+                });
+
+                const expiryText = humanExpiry(validation.expiresAt);
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('🎁 Token Donated Successfully!')
+                    .setDescription(`✅ Your token has been donated to the bot stock!`)
+                    .setColor(0x2ECC71)
+                    .addFields(
+                        { name: '👤 Donated By', value: `<@${interaction.user.id}>`, inline: true },
+                        { name: '⏳ Valid For', value: expiryText, inline: true },
+                        { name: '📦 Total Stock', value: `${tokenStock.length} token(s)`, inline: true }
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: 'TMC.LOL • Token Donation' });
+
+                return interaction.editReply({ embeds: [embed] });
             }
 
             if (commandName === 'token') {
@@ -960,6 +1010,7 @@ ${genId}
                     .setColor(0x3498DB)
                     .addFields(
                         { name: "🎮 `/token`", value: "Generate a fresh token directly to your DMs", inline: false },
+                        { name: "🎁 `/donate-token`", value: "Donate your tokens to the bot stock", inline: false },
                         { name: "🔑 `/generator`", value: "Post the token generator panel", inline: false },
                         { name: "📋 `/gen-codes`", value: "List all active generation IDs", inline: false },
                         { name: "🗑️ `/remove-stock`", value: "Remove a token by selection", inline: false },
@@ -1073,7 +1124,8 @@ ${genId}
                             'Generate your token below!\n\n' +
                             '⚠️ **Please open your DMs** to receive your token!\n' +
                             '🔄 **Auto-Refresh:** Before expiry\n' +
-                            '⏳ **Tokens refresh automatically!**'
+                            '⏳ **Tokens refresh automatically!**\n\n' +
+                            '🎁 **Donate tokens:** Use `/donate-token` to share your tokens with the bot stock!'
                         )
                         .setColor(0x5865F2)
                         .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
@@ -1086,7 +1138,11 @@ ${genId}
                         new ButtonBuilder().setCustomId('refresh_token_modal').setLabel('🔄 Refresh Token').setStyle(ButtonStyle.Primary).setEmoji('🔄')
                     );
 
-                    return interaction.reply({ embeds: [embed], components: [row, refreshRow] });
+                    const donateRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('donate_token_modal').setLabel('🎁 Donate Token').setStyle(ButtonStyle.Secondary).setEmoji('🎁')
+                    );
+
+                    return interaction.reply({ embeds: [embed], components: [row, refreshRow, donateRow] });
                 }
 
                 if (commandName === 'force_refresh') {
@@ -1240,7 +1296,8 @@ ${genId}
                                 'Generate your token below!\n\n' +
                                 '⚠️ **Please open your DMs** to receive your token!\n' +
                                 '🔄 **Auto-Refresh:** Before expiry\n' +
-                                '⏳ **Tokens refresh automatically!**'
+                                '⏳ **Tokens refresh automatically!**\n\n' +
+                                '🎁 **Donate tokens:** Use `/donate-token` to share your tokens with the bot stock!'
                             )
                             .setColor(0x5865F2)
                             .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
@@ -1253,7 +1310,11 @@ ${genId}
                             new ButtonBuilder().setCustomId('refresh_token_modal').setLabel('🔄 Refresh Token').setStyle(ButtonStyle.Primary).setEmoji('🔄')
                         );
 
-                        return interaction.reply({ embeds: [embed], components: [row, refreshRow] });
+                        const donateRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('donate_token_modal').setLabel('🎁 Donate Token').setStyle(ButtonStyle.Secondary).setEmoji('🎁')
+                        );
+
+                        return interaction.reply({ embeds: [embed], components: [row, refreshRow, donateRow] });
                     }
 
                     if (subArg === 'verify') {
@@ -1303,18 +1364,20 @@ ${genId}
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            // --- Refresh Token Modal Button - GENERATES NEW TOKEN ---
+            // --- Refresh Token Modal Button - PUBLIC (no admin required) ---
             if (interaction.customId === 'refresh_token_modal') {
-                if (!hasAdminAccess(interaction)) {
-                    return interaction.reply({ 
-                        content: `❌ You need admin permissions to refresh tokens.`, 
-                        flags: 64 
-                    });
-                }
-
                 const modal = new ModalBuilder()
                     .setCustomId('refresh_token_modal_submit')
-                    .setTitle('🔄 Refresh Token (Generates NEW Token)');
+                    .setTitle('🔄 Refresh Token (Get NEW Token)');
+
+                const bearerInput = new TextInputBuilder()
+                    .setCustomId('refresh_bearer_input')
+                    .setLabel("ENTER YOUR BEARER TOKEN")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+                    .setRequired(true)
+                    .setMinLength(10)
+                    .setMaxLength(2000);
 
                 const refreshInput = new TextInputBuilder()
                     .setCustomId('refresh_refresh_input')
@@ -1326,6 +1389,39 @@ ${genId}
                     .setMaxLength(2000);
 
                 modal.addComponents(
+                    new ActionRowBuilder().addComponents(bearerInput),
+                    new ActionRowBuilder().addComponents(refreshInput)
+                );
+
+                return await interaction.showModal(modal);
+            }
+
+            // --- Donate Token Modal Button ---
+            if (interaction.customId === 'donate_token_modal') {
+                const modal = new ModalBuilder()
+                    .setCustomId('donate_token_modal_submit')
+                    .setTitle('🎁 Donate Token to Bot');
+
+                const bearerInput = new TextInputBuilder()
+                    .setCustomId('donate_bearer_input')
+                    .setLabel("ENTER YOUR BEARER TOKEN")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+                    .setRequired(true)
+                    .setMinLength(10)
+                    .setMaxLength(2000);
+
+                const refreshInput = new TextInputBuilder()
+                    .setCustomId('donate_refresh_input')
+                    .setLabel("ENTER YOUR REFRESH TOKEN")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+                    .setRequired(true)
+                    .setMinLength(10)
+                    .setMaxLength(2000);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(bearerInput),
                     new ActionRowBuilder().addComponents(refreshInput)
                 );
 
@@ -1425,27 +1521,30 @@ ${genId}
         }
 
         if (interaction.isModalSubmit()) {
-            // --- Refresh Token Modal Submit - GENERATES NEW TOKEN ---
+            // --- Refresh Token Modal Submit - PUBLIC (no admin required) ---
             if (interaction.customId === 'refresh_token_modal_submit') {
                 try {
-                    if (!hasAdminAccess(interaction)) {
-                        return interaction.reply({
-                            content: `❌ **Access Denied:** You need admin permissions to refresh tokens.`,
-                            flags: 64
-                        });
-                    }
-
                     await interaction.deferReply({ flags: 64 });
                     
+                    const bearer = interaction.fields.getTextInputValue('refresh_bearer_input').trim();
                     const refresh = interaction.fields.getTextInputValue('refresh_refresh_input').trim();
                     
-                    if (!refresh) {
+                    if (!bearer || !refresh) {
                         return interaction.editReply({
-                            content: '❌ **Error:** Refresh token is required.'
+                            content: '❌ **Error:** Both Bearer and Refresh tokens are required.'
                         });
                     }
 
-                    // --- USE THE REFRESH TOKEN TO GENERATE A NEW TOKEN ---
+                    // Validate the token first
+                    const validation = await validateSteamToken(bearer);
+                    
+                    if (!validation.valid) {
+                        return interaction.editReply({
+                            content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
+                        });
+                    }
+
+                    // Use the refresh token to generate a NEW token
                     const refreshResult = await refreshToken(refresh);
                     
                     if (refreshResult.success) {
@@ -1492,6 +1591,62 @@ ${genId}
                     console.error('[TMC.LOL] Refresh Token Modal Error:', err);
                     return interaction.editReply({
                         content: '❌ **Error:** Failed to generate new token. Please try again.'
+                    });
+                }
+            }
+
+            // --- Donate Token Modal Submit ---
+            if (interaction.customId === 'donate_token_modal_submit') {
+                try {
+                    await interaction.deferReply({ flags: 64 });
+                    
+                    const bearer = interaction.fields.getTextInputValue('donate_bearer_input').trim();
+                    const refresh = interaction.fields.getTextInputValue('donate_refresh_input').trim();
+                    
+                    if (!bearer || !refresh) {
+                        return interaction.editReply({
+                            content: '❌ **Error:** Both Bearer and Refresh tokens are required to donate.'
+                        });
+                    }
+
+                    // Validate the token before adding to stock
+                    const validation = await validateSteamToken(bearer);
+                    
+                    if (!validation.valid) {
+                        return interaction.editReply({
+                            content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
+                        });
+                    }
+
+                    // Add the donated token to stock
+                    tokenStock.push({
+                        bearer: bearer,
+                        refresh: refresh,
+                        addedAt: Date.now(),
+                        expiresAt: validation.expiresAt,
+                        donatedBy: interaction.user.id,
+                        donatedByTag: interaction.user.tag
+                    });
+
+                    const expiryText = humanExpiry(validation.expiresAt);
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle('🎁 Token Donated Successfully!')
+                        .setDescription(`✅ Your token has been donated to the bot stock!`)
+                        .setColor(0x2ECC71)
+                        .addFields(
+                            { name: '👤 Donated By', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: '⏳ Valid For', value: expiryText, inline: true },
+                            { name: '📦 Total Stock', value: `${tokenStock.length} token(s)`, inline: true }
+                        )
+                        .setTimestamp()
+                        .setFooter({ text: 'TMC.LOL • Token Donation' });
+
+                    return interaction.editReply({ embeds: [embed] });
+                } catch (err) {
+                    console.error('[TMC.LOL] Donate Token Modal Error:', err);
+                    return interaction.editReply({
+                        content: '❌ **Error:** Failed to donate token. Please try again.'
                     });
                 }
             }
