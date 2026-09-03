@@ -85,7 +85,7 @@ function processQueue(error, token = null) {
 
 // --- DEFAULT TOKEN ---
 let DEFAULT_TOKEN = {
-  "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI4ZmE1ZjlmYy01OGZkLTQzMTQtYjA0My04ZDdjNjA4MjJkMmEiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImE1YjFlMDMxNjUwNDQ2OWJiMjVhNzUyMjY4NTRjNDcwIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODg0MDY5MDYsImlhdCI6MTc4ODQwMzMwNn0.hzm2IP6alGIwcFzCFKCD-GaGOCiZgmZECxXcMZ-Q9Aw",
+ "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI4ZmE1ZjlmYy01OGZkLTQzMTQtYjA0My04ZDdjNjA4MjJkMmEiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImE1YjFlMDMxNjUwNDQ2OWJiMjVhNzUyMjY4NTRjNDcwIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODg0MDY5MDYsImlhdCI6MTc4ODQwMzMwNn0.hzm2IP6alGIwcFzCFKCD-GaGOCiZgmZECxXcMZ-Q9Aw",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiI4ZmE1ZjlmYy01OGZkLTQzMTQtYjA0My04ZDdjNjA4MjJkMmEiLCJ1aWQiOiI2ZmQ2MTBmNS1hMDcxLTQyZDgtYTdhMS0zZmE2MDdlNTZhNWIiLCJ1c24iOiJCS1c3dkRVUDJLT1FuUWxGIiwidnJzIjp7ImF1dGhJRCI6ImE1YjFlMDMxNjUwNDQ2OWJiMjVhNzUyMjY4NTRjNDcwIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiA5Ljk5LjkuOTk5OV9mZmZmZmZmZiIsImRldmljZUlEIjoiMTgzNTc2MWMyYThiNmM2MjliOTlmZmY5ZWRmZjI4OWQ3ZjNlYTEyOCJ9LCJleHAiOjE3ODg0MjQ5MDYsImlhdCI6MTc4ODQwMzMwNn0.FbO5AviN1XM9Bgh8PC4vCy0cdf5bCurYtodyinpi2v8"
 };
 
@@ -589,7 +589,7 @@ function startAutoRefresh() {
     }, 5000);
 }
 
-// --- PROCESS TOKEN GENERATION - FIXED DM ERROR ---
+// --- PROCESS TOKEN GENERATION - NO DM CHECK ---
 async function processTokenGeneration(interaction, tierName) {
     const userId = interaction.user.id;
     const member = interaction.member;
@@ -626,29 +626,8 @@ async function processTokenGeneration(interaction, tierName) {
     
     activeGenerations.set(userId, Date.now());
     
-    // --- FIX: Check DM access BEFORE generating token ---
-    let dmEnabled = true;
-    try {
-        const testDM = await interaction.user.send({ content: '🔍 Verifying DM connection...' });
-        await testDM.delete();
-    } catch (dmError) {
-        dmEnabled = false;
-        activeGenerations.delete(userId);
-        
-        // Send the token in the channel as an ephemeral message instead
-        return interaction.editReply({
-            content: '❌ **I cannot send you a direct message!**\n\n' +
-                     'Please enable DMs and try again, or use the button below to get your token in this channel.\n\n' +
-                     '**How to enable DMs:**\n' +
-                     '1. Go to **User Settings** (⚙️)\n' +
-                     '2. Click **Privacy & Safety**\n' +
-                     '3. Enable **"Allow direct messages from server members"**\n\n' +
-                     '**Or click the button below to get your token here.**'
-        });
-    }
-    
     await interaction.editReply({
-        content: '⏳ **Generating your token...** (Step 1/4: DM Verified ✅)'
+        content: '⏳ **Generating your token...** (Step 1/4: Starting)'
     });
     
     try {
@@ -695,7 +674,7 @@ async function processTokenGeneration(interaction, tierName) {
         }
         
         await interaction.editReply({
-            content: '⏳ **Generating your token...** (Step 4/4: Sending to DMs)'
+            content: '⏳ **Generating your token...** (Step 4/4: Sending)'
         });
         
         const expiryText = humanExpiry(tokenObj.expiresAt);
@@ -763,7 +742,7 @@ ${genId}
             console.error('[TMC.LOL] DM Error:', err);
             activeGenerations.delete(userId);
             
-            // --- FIX: If DM fails, send the token as an ephemeral message in the channel ---
+            // Fallback: send in channel as ephemeral
             const fallbackEmbed = new EmbedBuilder()
                 .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
                 .setDescription('⚠️ **Could not send DM!** Here is your token:\n\n' +
@@ -774,11 +753,10 @@ ${genId}
                 .setColor(0xFEE75C)
                 .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
             
-            // Send as ephemeral message with attachments
             return interaction.editReply({
                 embeds: [fallbackEmbed],
                 files: [attachment, textAttachment],
-                content: '📩 **Token sent here because DMs are closed.** Please enable DMs for future tokens!'
+                content: '📩 **Token sent here because DMs failed.**'
             });
         }
         
@@ -1034,7 +1012,7 @@ ${genId}
                         return interaction.editReply({
                             embeds: [fallbackEmbed],
                             files: [attachment, textAttachment],
-                            content: '📩 **Token sent here because DMs are closed.** Please enable DMs for future tokens!'
+                            content: '📩 **Token sent here because DMs failed.**'
                         });
                     }
                 } catch (err) {
