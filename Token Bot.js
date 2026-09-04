@@ -1,4 +1,3 @@
-
 const {
     Client,
     GatewayIntentBits,
@@ -6,11 +5,9 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    StringSelectMenuBuilder,
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ChannelType,
     PermissionFlagsBits,
     SlashCommandBuilder,
     REST,
@@ -39,19 +36,6 @@ const client = new Client({
     failIfNotExists: false
 });
 
-// --- CONFIGURATION ---
-const MEMBER_ROLE_ID = "1492798151516491816";
-const SUPPORTER_ROLE_ID = "1529393418063581284";
-const ANNOUNCEMENT_ROLE_ID = "123456789012345678";
-const ADMIN_ROLE_ID = "1542956153166626856";
-
-const BUYER_ROLE_ID = "1542337976917434428";
-const VIP_ROLE_ID = "1542337978016469093";
-const BOOSTER_ROLE_ID = "1542337979807178832";
-
-const NO_COOLDOWN_ROLE_ID = ADMIN_ROLE_ID;
-const GENERATION_COOLDOWN = 5 * 60 * 1000;
-
 // --- API CONFIGURATION ---
 const NAKAMA_SERVER = 'https://animalcompany.us-east1.nakamacloud.io';
 const NAKAMA_SERVER_KEY = '6URuTSlDKKfYbuDW';
@@ -59,13 +43,6 @@ const API_URLS = [ NAKAMA_SERVER ];
 
 let ACTIVE_API_URL = API_URLS[0];
 let apiWorking = false;
-
-const hasServerKey = NAKAMA_SERVER_KEY && NAKAMA_SERVER_KEY.length > 0 && NAKAMA_SERVER_KEY !== 'Key';
-if (!hasServerKey) {
-    console.log('[TMC.LOL] ⚠️ NAKAMA_SERVER_KEY not set - token refresh will fail with "Server key required"');
-} else {
-    console.log('[TMC.LOL] ✅ NAKAMA_SERVER_KEY is set! Token refresh should work.');
-}
 
 // --- Token refresh queue system ---
 let isRefreshing = false;
@@ -90,81 +67,10 @@ let DEFAULT_TOKEN = {
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0aWQiOiIwMmVhYTg4OC1jNzcwLTQwMjQtODZiMy02NTU4Mzk3YmQwZjQiLCJ1aWQiOiJlNDY4MzE4Ny02ZTRlLTQzMmItOTQ2My0wNjNlYzI5NDZhMmMiLCJ1c24iOiJTMURFVnhpS0FkZzlVYW12IiwidnJzIjp7ImF1dGhJRCI6IjMxNzk1ZjE4NTViMTQ2NmZiODVkNzRmNDY0M2M5MTgzIiwiY2xpZW50VXNlckFnZW50IjoiU3RlYW1WUiAxLjg4LjEuMzQyMV9hM2RmNmNlNSIsImRldmljZUlEIjoiNmU5NjZhYzcwMTAxOGUxN2NkYzNmNjA4ODQ4ODA2MTgwNjYxMjhiZiJ9LCJleHAiOjE3ODgwNjQ3MjMsImlhdCI6MTc4ODA0MzEyM30.H3Ygt1bcOBx4Vm_0y5bdpL6vRtxqVAl0QeXDjdqfzTs"
 };
 
-// --- Map to track remove-stock message for updates ---
-const removeStockMessages = new Map();
-
-function generateGenerationId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let id = 'GEN-';
-    for (let i = 0; i < 6; i++) {
-        id += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return id;
-}
-
-function removeTokenById(id) {
-    const idx = tokenStock.findIndex(t => t.id === id);
-    if (idx === -1) {
-        return { success: false, message: 'No token found with that generation ID.' };
-    }
-    tokenStock.splice(idx, 1);
-    return { success: true, message: `Token with ID \`${id}\` removed from stock. Remaining tokens: ${tokenStock.length}` };
-}
-
-function removeAllTokens() {
-    const before = tokenStock.length;
-    tokenStock = tokenStock.filter(t => !t.id);
-    const removed = before - tokenStock.length;
-    return { success: true, message: `Removed ${removed} generated token(s). ${tokenStock.length} token(s) remain in stock.` };
-}
-
-const REQUIRED_ROLES = {
-    BOOSTER: {
-        name: "Server Booster",
-        color: 0x5865F2,
-        permissions: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-    },
-    BUYER: {
-        name: "Buyer",
-        color: 0xFEE75C,
-        permissions: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-    },
-    VIP: {
-        name: "VIP",
-        color: 0xED4245,
-        permissions: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.CreateInstantInvite]
-    },
-    VERIFIED: {
-        name: "Verified Member",
-        color: 0x2ECC71,
-        permissions: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AddReactions]
-    },
-    MODERATOR: {
-        name: "Moderator",
-        color: 0xE67E22,
-        permissions: [PermissionFlagsBits.KickMembers, PermissionFlagsBits.BanMembers, PermissionFlagsBits.ManageMessages]
-    },
-    ADMIN: {
-        name: "Administrator",
-        color: 0xED4245,
-        permissions: [PermissionFlagsBits.Administrator]
-    }
-};
-
-const validCodes = new Set();
-const userWarnings = new Map();
 let tokenStock = [];
 const cooldowns = new Map();
-const logChannels = new Map();
-let refreshBatchCounter = 0;
 const activeGenerations = new Map();
 let refreshInterval = null;
-
-function hasAdminAccess(interaction) {
-    if (interaction.member && interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
-    if (interaction.member && interaction.member.roles && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) return true;
-    return false;
-}
 
 // --- JWT / EXPIRY HELPERS ---
 function decodeJwt(token) {
@@ -209,9 +115,13 @@ function isTokenExpired(tokenObj) {
     return Date.now() >= getTokenExpiryMs(tokenObj.bearer);
 }
 
-function generateSupporterCode() {
-    const randomNums = () => Math.floor(1000 + Math.random() * 9000);
-    return `supporter-${randomNums()}-${randomNums()}-${randomNums()}`;
+function generateGenerationId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = 'GEN-';
+    for (let i = 0; i < 6; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return id;
 }
 
 // --- CLEANUP STUCK GENERATIONS ---
@@ -228,40 +138,6 @@ setInterval(() => {
         console.log(`[TMC.LOL] Cleaned ${cleaned} stuck token generations`);
     }
 }, 30000);
-
-// --- HELPER FUNCTIONS ---
-async function sendBotLog(guild, category, embed) {
-    if (!guild) return;
-    const logKey = `${guild.id}-${category}`;
-    const defaultKey = `${guild.id}-general`;
-    
-    let channelId = logChannels.get(logKey) || logChannels.get(defaultKey);
-    if (!channelId) return;
-
-    try {
-        const channel = await guild.channels.fetch(channelId);
-        if (channel && channel.isTextBased()) {
-            await channel.send({ embeds: [embed] });
-        }
-    } catch (err) {
-        console.error(`[TMC.LOL] Log error:`, err.message);
-    }
-}
-
-function formatTimeAgo(timestamp) {
-    const now = Date.now();
-    const diff = now - timestamp;
-    
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    return `${seconds} second${seconds > 1 ? 's' : ''} ago`;
-}
 
 // --- FIND WORKING API URL ---
 async function findWorkingApiUrl() {
@@ -301,23 +177,6 @@ async function findWorkingApiUrl() {
     console.log('[TMC.LOL] ⚠️ No working API URL found. Using fallback mode.');
     apiWorking = false;
     return API_URLS[0];
-}
-
-// --- FORCE SET OWN TOKEN ---
-function forceSetOwnToken(bearer, refresh) {
-    DEFAULT_TOKEN.bearer = bearer;
-    DEFAULT_TOKEN.refresh_token = refresh;
-    const expiry = getTokenExpiryMs(bearer);
-    tokenStock = [{
-        bearer: bearer,
-        refresh: refresh,
-        addedAt: Date.now(),
-        expiresAt: expiry
-    }];
-    console.log('[TMC.LOL] ✅ Token manually set!');
-    console.log(`[TMC.LOL] ⏳ ${humanExpiry(expiry)}`);
-    console.log(`[TMC.LOL] Bearer: ${bearer.substring(0, 50)}...`);
-    console.log(`[TMC.LOL] Refresh: ${refresh.substring(0, 50)}...`);
 }
 
 // --- TOKEN VALIDATION ---
@@ -536,7 +395,7 @@ async function refreshTokenInStock() {
     console.log(`[TMC.LOL] Stock count: ${tokenStock.length}`);
 }
 
-// --- START AUTO-REFRESH (expiry-driven) ---
+// --- START AUTO-REFRESH ---
 const REFRESH_BEFORE_MS = 5 * 60 * 1000;
 const MIN_REFRESH_MS = 60 * 1000;
 const MAX_REFRESH_MS = 30 * 60 * 1000;
@@ -575,7 +434,7 @@ function scheduleNextRefresh() {
 
 function startAutoRefresh() {
     console.log('[TMC.LOL] ================================');
-    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED (expiry-driven)');
+    console.log('[TMC.LOL] 🔄 AUTO-REFRESH STARTED');
     console.log('[TMC.LOL] ⏳ Tokens refresh BEFORE they expire!');
     console.log('[TMC.LOL] ================================');
 
@@ -590,27 +449,23 @@ function startAutoRefresh() {
     }, 5000);
 }
 
-// --- PROCESS TOKEN GENERATION - NO DM CHECK ---
-async function processTokenGeneration(interaction, tierName) {
+// --- PROCESS TOKEN GENERATION ---
+async function processTokenGeneration(interaction) {
     const userId = interaction.user.id;
     const member = interaction.member;
     
     await interaction.deferReply({ flags: 64 });
     
-    const hasNoCooldown = member && member.roles && member.roles.cache.has(NO_COOLDOWN_ROLE_ID);
-    
-    if (!hasNoCooldown) {
-        const cooldownKey = `public_${userId}`;
-        if (cooldowns.has(cooldownKey)) {
-            const cooldownEnd = cooldowns.get(cooldownKey);
-            if (Date.now() < cooldownEnd) {
-                const remaining = cooldownEnd - Date.now();
-                const minutes = Math.floor(remaining / 60000);
-                const seconds = Math.floor((remaining % 60000) / 1000);
-                return interaction.editReply({
-                    content: `⏳ **Please wait ${minutes}m ${seconds}s** before generating another token.`
-                });
-            }
+    const cooldownKey = `public_${userId}`;
+    if (cooldowns.has(cooldownKey)) {
+        const cooldownEnd = cooldowns.get(cooldownKey);
+        if (Date.now() < cooldownEnd) {
+            const remaining = cooldownEnd - Date.now();
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            return interaction.editReply({
+                content: `⏳ **Please wait ${minutes}m ${seconds}s** before generating another token.`
+            });
         }
     }
     
@@ -670,9 +525,7 @@ async function processTokenGeneration(interaction, tierName) {
         tokenStock.shift();
         tokenStock.push(tokenObj);
         
-        if (!hasNoCooldown) {
-            cooldowns.set(`public_${userId}`, Date.now() + GENERATION_COOLDOWN);
-        }
+        cooldowns.set(`public_${userId}`, Date.now() + 5 * 60 * 1000);
         
         await interaction.editReply({
             content: '⏳ **Generating your token...** (Step 4/4: Sending)'
@@ -689,7 +542,6 @@ async function processTokenGeneration(interaction, tierName) {
                 added_at: new Date().toISOString(),
                 generation_id: genId
             },
-            message: "Thank you for using TMC.LOL Token Generator!",
             auto_refresh: "Refreshed automatically before expiry"
         };
         
@@ -697,7 +549,7 @@ async function processTokenGeneration(interaction, tierName) {
         const jsonBuffer = Buffer.from(jsonString, 'utf-8');
         const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
         
-        const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
+        const textVersion = `🔑 TOKEN GENERATOR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 BEARER TOKEN:
@@ -718,7 +570,7 @@ ${genId}
         const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
         
         const embed = new EmbedBuilder()
-            .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
+            .setTitle('🔑 TOKEN GENERATOR')
             .setDescription('✅ **Token generated successfully!**\n\n' +
                 '📁 **Files attached:**\n' +
                 '• `token.json` - JSON format\n' +
@@ -727,7 +579,7 @@ ${genId}
                 `⏳ **Valid for:** ${expiryText}\n` +
                 '🔄 **Auto-Refresh:** Before expiry')
             .setColor(tokenExpired ? 0xED4245 : 0x5865F2)
-            .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
+            .setFooter({ text: 'Auto-Refresh' });
         
         try {
             await interaction.user.send({
@@ -743,16 +595,15 @@ ${genId}
             console.error('[TMC.LOL] DM Error:', err);
             activeGenerations.delete(userId);
             
-            // Fallback: send in channel as ephemeral
             const fallbackEmbed = new EmbedBuilder()
-                .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
+                .setTitle('🔑 TOKEN GENERATOR')
                 .setDescription('⚠️ **Could not send DM!** Here is your token:\n\n' +
                     '📁 **Download the attached files below**\n\n' +
                     `🆔 **Generation ID:** \`${genId}\`\n` +
                     `⏳ **Valid for:** ${expiryText}\n` +
                     '🔄 **Auto-Refresh:** Before expiry')
                 .setColor(0xFEE75C)
-                .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
+                .setFooter({ text: 'Auto-Refresh' });
             
             return interaction.editReply({
                 embeds: [fallbackEmbed],
@@ -772,27 +623,14 @@ ${genId}
 
 // --- SLASH COMMANDS ---
 const commandsData = [
-    new SlashCommandBuilder().setName('8ball').setDescription('Ask the magic 8ball a question').addStringOption(opt => opt.setName('question').setDescription('Your question').setRequired(true)),
-    new SlashCommandBuilder().setName('help').setDescription('List all available bot commands and panels'),
-    new SlashCommandBuilder().setName('ping').setDescription('Pong - checks bot latency'),
-    new SlashCommandBuilder().setName('serverinfo').setDescription('Get info about this server'),
-    new SlashCommandBuilder().setName('token').setDescription('Generate a fresh token directly to your DMs'),
-    new SlashCommandBuilder().setName('stock').setDescription('Open form to add token stock').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('stock_main').setDescription('Set the main/default token').addStringOption(opt => opt.setName('bearer').setDescription('Bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Refresh token').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('generator').setDescription('Post generator panel').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('force_refresh').setDescription('Force refresh the current token').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('remove-stock').setDescription('Remove a token by selection').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('reset-stock').setDescription('Reset stock to default token').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('gen-codes').setDescription('List all active generation IDs').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('remove-token').setDescription('Remove a specific token by ID').addStringOption(opt => opt.setName('id').setDescription('Generation ID').setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('refresh_cooldown_all').setDescription('Reset cooldown for everyone').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('donate-token').setDescription('Donate your tokens to the bot stock').addStringOption(opt => opt.setName('bearer').setDescription('Your bearer token').setRequired(true)).addStringOption(opt => opt.setName('refresh').setDescription('Your refresh token').setRequired(true)),
-    new SlashCommandBuilder().setName('panel').setDescription('Deploys interactive panels').addStringOption(opt => opt.setName('type').setDescription('Panel type').setRequired(true).addChoices(
-        { name: 'Verify', value: 'verify' },
-        { name: 'Redeem', value: 'redeem' },
-        { name: 'Support', value: 'support' },
-        { name: 'Generator', value: 'generator' }
-    )).setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder()
+        .setName('stock')
+        .setDescription('Open form to add token stock')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder()
+        .setName('dashboard')
+        .setDescription('Post the token generator panel'),
 ].map(command => command.toJSON());
 
 // --- READY EVENT ---
@@ -800,8 +638,7 @@ client.once('ready', async () => {
     try {
         console.log(`[TMC.LOL] 🚀 ONLINE: ${client.user.tag}`);
         console.log('[TMC.LOL] 🔑 Token Generator Active');
-        console.log('[TMC.LOL] 🔄 Auto-Refresh (expiry-driven)');
-        console.log('[TMC.LOL] ⏳ Tokens refresh BEFORE they expire!');
+        console.log('[TMC.LOL] 🔄 Auto-Refresh Active');
         console.log(`[TMC.LOL] 👑 Connected to ${client.guilds.cache.size} server(s)`);
         console.log('[TMC.LOL] ================================');
 
@@ -850,832 +687,76 @@ client.on('disconnect', () => {
 client.on('interactionCreate', async interaction => {
     try {
         if (interaction.isChatInputCommand()) {
-            const { commandName, options } = interaction;
+            const { commandName } = interaction;
 
-            if (commandName === 'ping') {
-                return interaction.reply({ content: `🏓 Pong! Latency: \`${client.ws.ping}ms\``, flags: 64 });
-            }
-
-            if (commandName === '8ball') {
-                const question = options.getString('question');
-                const answers = ['Yes.', 'No.', 'Maybe.', 'Definitely.', 'Ask again later.', 'Outlook not so good.'];
-                const ans = answers[Math.floor(Math.random() * answers.length)];
-                const embed = new EmbedBuilder().setTitle('🎱 Magic 8-Ball').addFields({ name: 'Question', value: question }, { name: 'Answer', value: ans }).setColor(0x3498DB);
-                return interaction.reply({ embeds: [embed] });
-            }
-
-            if (commandName === 'donate-token') {
-                await interaction.deferReply({ flags: 64 });
-                
-                const bearer = options.getString('bearer').trim();
-                const refresh = options.getString('refresh').trim();
-                
-                if (!bearer || !refresh) {
-                    return interaction.editReply({
-                        content: '❌ **Error:** Both Bearer and Refresh tokens are required to donate.'
-                    });
-                }
-
-                const validation = await validateSteamToken(bearer);
-                
-                if (!validation.valid) {
-                    return interaction.editReply({
-                        content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
-                    });
-                }
-
-                tokenStock.push({
-                    bearer: bearer,
-                    refresh: refresh,
-                    addedAt: Date.now(),
-                    expiresAt: validation.expiresAt,
-                    donatedBy: interaction.user.id,
-                    donatedByTag: interaction.user.tag
-                });
-
-                const expiryText = humanExpiry(validation.expiresAt);
-                
+            // --- DASHBOARD COMMAND ---
+            if (commandName === 'dashboard') {
                 const embed = new EmbedBuilder()
-                    .setTitle('🎁 Token Donated Successfully!')
-                    .setDescription(`✅ Your token has been donated to the bot stock!`)
-                    .setColor(0x2ECC71)
-                    .addFields(
-                        { name: '👤 Donated By', value: `<@${interaction.user.id}>`, inline: true },
-                        { name: '⏳ Valid For', value: expiryText, inline: true },
-                        { name: '📦 Total Stock', value: `${tokenStock.length} token(s)`, inline: true }
+                    .setTitle('🔑 TOKEN GENERATOR')
+                    .setDescription(
+                        'Generate your token below!\n\n' +
+                        '⚠️ **Please open your DMs** to receive your token!\n' +
+                        '🔄 **Auto-Refresh:** Before expiry\n' +
+                        '⏳ **Tokens refresh automatically!**'
                     )
-                    .setTimestamp()
-                    .setFooter({ text: 'TMC.LOL • Token Donation' });
+                    .setColor(0x5865F2)
+                    .setFooter({ text: 'Auto-Refresh' });
 
-                return interaction.editReply({ embeds: [embed] });
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('gen_public')
+                        .setLabel('Generate Token')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('🔑')
+                );
+
+                return interaction.reply({ embeds: [embed], components: [row] });
             }
 
-            if (commandName === 'token') {
-                await interaction.deferReply({ flags: 64 });
-                
-                if (tokenStock.length === 0) {
-                    tokenStock.push({
-                        bearer: DEFAULT_TOKEN.bearer,
-                        refresh: DEFAULT_TOKEN.refresh_token,
-                        addedAt: Date.now(),
-                        expiresAt: getTokenExpiryMs(DEFAULT_TOKEN.bearer)
-                    });
-                }
-                
-                let tokenObj = tokenStock[0];
-                
-                const refreshResult = await refreshToken(tokenObj.refresh);
-                if (refreshResult.success) {
-                    tokenObj = tokenStock[0];
-                }
-                
-                const genId = generateGenerationId();
-                tokenObj.id = genId;
-                tokenObj.userId = interaction.user.id;
-                tokenObj.username = interaction.user.tag;
-                
-                tokenStock.shift();
-                tokenStock.push(tokenObj);
-                
-                const expiryText = humanExpiry(tokenObj.expiresAt);
-                const tokenExpired = Date.now() >= tokenObj.expiresAt;
-                
-                try {
-                    const tokenData = {
-                        token: {
-                            bearer: tokenObj.bearer,
-                            refresh_token: tokenObj.refresh,
-                            expires_at: new Date(tokenObj.expiresAt).toISOString(),
-                            added_at: new Date().toISOString(),
-                            generation_id: genId
-                        },
-                        message: "Thank you for using TMC.LOL Token Generator!",
-                        auto_refresh: "Refreshed automatically before expiry"
-                    };
-                    
-                    const jsonString = JSON.stringify(tokenData, null, 2);
-                    const jsonBuffer = Buffer.from(jsonString, 'utf-8');
-                    const attachment = new AttachmentBuilder(jsonBuffer, { name: 'token.json' });
-                    
-                    const textVersion = `🔑 TMC.LOL TOKEN GENERATOR
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // --- STOCK COMMAND (Admin only) ---
+            if (commandName === 'stock') {
+                const modal = new ModalBuilder()
+                    .setCustomId('stock_modal')
+                    .setTitle('📦 Add Token Stock');
 
-BEARER TOKEN:
-${tokenObj.bearer}
+                const bearerInput = new TextInputBuilder()
+                    .setCustomId('stock_bearer_input')
+                    .setLabel("ENTER BEARER TOKEN")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+                    .setRequired(true)
+                    .setMinLength(10)
+                    .setMaxLength(2000);
 
-REFRESH TOKEN:
-${tokenObj.refresh}
+                const refreshInput = new TextInputBuilder()
+                    .setCustomId('stock_refresh_input')
+                    .setLabel("ENTER REFRESH TOKEN")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+                    .setRequired(true)
+                    .setMinLength(10)
+                    .setMaxLength(2000);
 
-GENERATION ID:
-${genId}
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(bearerInput),
+                    new ActionRowBuilder().addComponents(refreshInput)
+                );
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⏳ Valid for: ${expiryText}
-🔄 Auto-Refresh: Before expiry
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-                    
-                    const textBuffer = Buffer.from(textVersion, 'utf-8');
-                    const textAttachment = new AttachmentBuilder(textBuffer, { name: 'token.txt' });
-                    
-                    const embed = new EmbedBuilder()
-                        .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-                        .setDescription('✅ **Token generated successfully!**\n\n' +
-                            '📁 **Files attached:**\n' +
-                            '• `token.json` - JSON format\n' +
-                            '• `token.txt` - Plain text format\n\n' +
-                            `🆔 **Generation ID:** \`${genId}\`\n` +
-                            `⏳ **Valid for:** ${expiryText}\n` +
-                            '🔄 **Auto-Refresh:** Before expiry')
-                        .setColor(tokenExpired ? 0xED4245 : 0x5865F2)
-                        .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
-                    
-                    try {
-                        await interaction.user.send({
-                            embeds: [embed],
-                            files: [attachment, textAttachment]
-                        });
-                        
-                        return interaction.editReply({
-                            content: `✅ **Token sent to your DMs!**\n🆔 **ID:** \`${genId}\`\n⏳ **${expiryText}**\n📦 **Tokens remaining:** ${tokenStock.length}`
-                        });
-                    } catch (dmErr) {
-                        // Fallback: send in channel as ephemeral
-                        const fallbackEmbed = new EmbedBuilder()
-                            .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-                            .setDescription('⚠️ **Could not send DM!** Here is your token:\n\n' +
-                                '📁 **Download the attached files below**\n\n' +
-                                `🆔 **Generation ID:** \`${genId}\`\n` +
-                                `⏳ **Valid for:** ${expiryText}\n` +
-                                '🔄 **Auto-Refresh:** Before expiry')
-                            .setColor(0xFEE75C)
-                            .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
-                        
-                        return interaction.editReply({
-                            embeds: [fallbackEmbed],
-                            files: [attachment, textAttachment],
-                            content: '📩 **Token sent here because DMs failed.**'
-                        });
-                    }
-                } catch (err) {
-                    return interaction.editReply({
-                        content: '❌ **Error generating token. Please try again.**'
-                    });
-                }
-            }
-
-            if (commandName === 'help') {
-                const embed = new EmbedBuilder()
-                    .setTitle("⚡ TMC.LOL COMMAND DIRECTORY")
-                    .setDescription("Token Generator Bot Commands:")
-                    .setColor(0x3498DB)
-                    .addFields(
-                        { name: "🎮 `/token`", value: "Generate a fresh token directly to your DMs", inline: false },
-                        { name: "🎁 `/donate-token`", value: "Donate your tokens to the bot stock", inline: false },
-                        { name: "🔑 `/generator`", value: "Post the token generator panel", inline: false },
-                        { name: "📋 `/gen-codes`", value: "List all active generation IDs", inline: false },
-                        { name: "🗑️ `/remove-stock`", value: "Remove a token by selection", inline: false },
-                        { name: "🔄 `/force_refresh`", value: "Force refresh the current token", inline: false },
-                        { name: "⏳ **Auto-Refresh**", value: "Refreshes before token expiry", inline: false }
-                    )
-                    .setFooter({ text: "TMC.LOL • Auto-Refresh" });
-
-                return interaction.reply({ embeds: [embed], flags: 64 });
-            }
-
-            if (commandName === 'serverinfo') {
-                const guild = interaction.guild;
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Server Info: ${guild.name}`)
-                    .setThumbnail(guild.iconURL())
-                    .addFields(
-                        { name: '👥 Members', value: `${guild.memberCount}`, inline: true },
-                        { name: '📅 Created', value: `<t:${Math.floor(guild.createdTimestamp/1000)}:R>`, inline: true },
-                        { name: '👑 Owner', value: `<@${guild.ownerId}>`, inline: true }
-                    )
-                    .setColor(0x3498DB)
-                    .setTimestamp();
-                return interaction.reply({ embeds: [embed] });
-            }
-
-            // --- ADMIN COMMANDS ---
-            const adminCommands = ['stock', 'stock_main', 'generator', 'force_refresh', 'remove-stock', 'reset-stock', 'gen-codes', 'remove-token', 'refresh_cooldown_all', 'panel'];
-            
-            if (adminCommands.includes(commandName)) {
-                if (!hasAdminAccess(interaction)) {
-                    return interaction.reply({ 
-                        content: `❌ **Access Denied:** You need admin permissions.`, 
-                        flags: 64 
-                    });
-                }
-
-                if (commandName === 'stock_main') {
-                    try {
-                        await interaction.deferReply({ flags: 64 });
-                        
-                        const bearer = options.getString('bearer');
-                        const refresh = options.getString('refresh');
-                        
-                        if (!bearer || !refresh) {
-                            return interaction.editReply({
-                                content: '❌ **Error:** Both Bearer and Refresh tokens are required.'
-                            });
-                        }
-                        
-                        forceSetOwnToken(bearer, refresh);
-                        
-                        const embed = new EmbedBuilder()
-                            .setTitle('📌 Main Token Updated!')
-                            .setDescription('Token updated successfully!')
-                            .setColor(0x2ECC71)
-                            .addFields(
-                                { name: 'Valid For', value: humanExpiry(tokenStock[0].expiresAt), inline: true },
-                                { name: 'Stock', value: `${tokenStock.length} token(s)`, inline: true }
-                            )
-                            .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
-                        
-                        return interaction.editReply({ embeds: [embed] });
-                    } catch (err) {
-                        console.error('[TMC.LOL] Stock Main Error:', err);
-                        return interaction.editReply({ content: '❌ **Error:** Failed to set main token.' });
-                    }
-                }
-
-                if (commandName === 'stock') {
-                    try {
-                        const modal = new ModalBuilder()
-                            .setCustomId('stock_modal')
-                            .setTitle('📦 Add Token Stock');
-
-                        const bearerInput = new TextInputBuilder()
-                            .setCustomId('stock_bearer_input')
-                            .setLabel("ENTER BEARER TOKEN")
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                            .setRequired(true)
-                            .setMinLength(10)
-                            .setMaxLength(2000);
-
-                        const refreshInput = new TextInputBuilder()
-                            .setCustomId('stock_refresh_input')
-                            .setLabel("ENTER REFRESH TOKEN")
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                            .setRequired(true)
-                            .setMinLength(10)
-                            .setMaxLength(2000);
-
-                        modal.addComponents(
-                            new ActionRowBuilder().addComponents(bearerInput),
-                            new ActionRowBuilder().addComponents(refreshInput)
-                        );
-
-                        await interaction.showModal(modal);
-                    } catch (err) {
-                        console.error('[TMC.LOL] Stock Error:', err);
-                        return interaction.reply({ content: '❌ **Error:** Failed to open stock form.', flags: 64 });
-                    }
-                    return;
-                }
-
-                if (commandName === 'generator') {
-                    const embed = new EmbedBuilder()
-                        .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-                        .setDescription(
-                            'Generate your token below!\n\n' +
-                            '⚠️ **Please open your DMs** to receive your token!\n' +
-                            '🔄 **Auto-Refresh:** Before expiry\n' +
-                            '⏳ **Tokens refresh automatically!**\n\n' +
-                            '🎁 **Donate tokens:** Use `/donate-token` to share your tokens with the bot stock!'
-                        )
-                        .setColor(0x5865F2)
-                        .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
-
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('gen_public').setLabel('Generate Token').setStyle(ButtonStyle.Success).setEmoji('🔑')
-                    );
-
-                    const refreshRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('refresh_token_modal').setLabel('🔄 Refresh Token').setStyle(ButtonStyle.Primary).setEmoji('🔄')
-                    );
-
-                    const donateRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('donate_token_modal').setLabel('🎁 Donate Token').setStyle(ButtonStyle.Secondary).setEmoji('🎁')
-                    );
-
-                    return interaction.reply({ embeds: [embed], components: [row, refreshRow, donateRow] });
-                }
-
-                if (commandName === 'force_refresh') {
-                    await interaction.deferReply({ flags: 64 });
-                    
-                    if (tokenStock.length === 0) {
-                        return interaction.editReply({
-                            content: '❌ **Error:** No token in stock!'
-                        });
-                    }
-                    
-                    try {
-                        const refreshResult = await refreshToken(tokenStock[0].refresh);
-                        
-                        if (refreshResult.success) {
-                            const embed = new EmbedBuilder()
-                                .setTitle('🔄 Token Force Refreshed!')
-                                .setDescription('✅ Token refreshed successfully!')
-                                .setColor(0x2ECC71)
-                                .addFields(
-                                    { name: '⏳ Expiry', value: humanExpiry(tokenStock[0].expiresAt), inline: true },
-                                    { name: '📦 Stock', value: `${tokenStock.length} token(s)`, inline: true }
-                                )
-                                .setFooter({ text: 'TMC.LOL • Force Refresh' });
-                            
-                            return interaction.editReply({ embeds: [embed] });
-                        } else {
-                            return interaction.editReply({
-                                content: '⚠️ **Refresh Attempted** - Will retry automatically before expiry.'
-                            });
-                        }
-                    } catch (err) {
-                        console.error('[TMC.LOL] Force Refresh Error:', err);
-                        return interaction.editReply({
-                            content: '⚠️ **Refresh Attempted** - Will retry automatically before expiry.'
-                        });
-                    }
-                }
-
-                if (commandName === 'remove-stock') {
-                    const entries = tokenStock
-                        .filter(t => t.id && t.id.length > 0)
-                        .map(t => ({
-                            id: t.id,
-                            userId: t.userId,
-                            username: t.username || `<@${t.userId}>`
-                        }));
-
-                    if (entries.length === 0) {
-                        return interaction.reply({
-                            content: '📭 No active generation IDs to remove.',
-                            flags: 64
-                        });
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🗑️ Remove a Token by Selection')
-                        .setDescription(`**${entries.length}** active token(s)`)
-                        .setColor(0xED4245);
-
-                    entries.forEach((entry) => {
-                        embed.addFields({
-                            name: `\`${entry.id}\``,
-                            value: `👤 ${entry.username}`,
-                            inline: false
-                        });
-                    });
-
-                    const row = new ActionRowBuilder();
-                    entries.slice(0, 5).forEach((entry) => {
-                        row.addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`remove_${entry.id}`)
-                                .setLabel(`Remove ${entry.id}`)
-                                .setStyle(ButtonStyle.Danger)
-                                .setEmoji('🗑️')
-                        );
-                    });
-
-                    return interaction.reply({
-                        embeds: [embed],
-                        components: [row],
-                        flags: 64
-                    });
-                }
-
-                if (commandName === 'reset-stock') {
-                    const expiry = getTokenExpiryMs(DEFAULT_TOKEN.bearer);
-                    tokenStock = [{
-                        bearer: DEFAULT_TOKEN.bearer,
-                        refresh: DEFAULT_TOKEN.refresh_token,
-                        addedAt: Date.now(),
-                        expiresAt: expiry
-                    }];
-                    return interaction.reply({ content: '🔄 Stock has been reset to default.', flags: 64 });
-                }
-
-                if (commandName === 'remove-token') {
-                    const id = options.getString('id').trim();
-                    const result = removeTokenById(id);
-                    return interaction.reply({ 
-                        content: result.success ? `✅ ${result.message}` : `❌ ${result.message}`, 
-                        flags: 64 
-                    });
-                }
-
-                if (commandName === 'gen-codes') {
-                    const entries = tokenStock
-                        .filter(t => t.id && t.id.length > 0)
-                        .map(t => ({
-                            id: t.id,
-                            username: t.username || `<@${t.userId}>`
-                        }));
-
-                    if (entries.length === 0) {
-                        return interaction.reply({ content: '📭 No active generation IDs found.', flags: 64 });
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('📋 Active Generation IDs')
-                        .setDescription(`**${entries.length}** active token(s)`)
-                        .setColor(0x5865F2);
-
-                    entries.forEach((entry) => {
-                        embed.addFields({
-                            name: `\`${entry.id}\``,
-                            value: `👤 ${entry.username}`,
-                            inline: false
-                        });
-                    });
-
-                    return interaction.reply({ embeds: [embed], flags: 64 });
-                }
-
-                if (commandName === 'refresh_cooldown_all') {
-                    const count = cooldowns.size;
-                    cooldowns.clear();
-                    return interaction.reply({
-                        content: `⏱️ **Cooldowns Reset!** ${count} cooldowns cleared.`,
-                        flags: 64
-                    });
-                }
-
-                if (commandName === 'panel') {
-                    const subArg = options.getString('type');
-
-                    if (subArg === 'generator') {
-                        const embed = new EmbedBuilder()
-                            .setTitle('🔑 TMC.LOL TOKEN GENERATOR')
-                            .setDescription(
-                                'Generate your token below!\n\n' +
-                                '⚠️ **Please open your DMs** to receive your token!\n' +
-                                '🔄 **Auto-Refresh:** Before expiry\n' +
-                                '⏳ **Tokens refresh automatically!**\n\n' +
-                                '🎁 **Donate tokens:** Use `/donate-token` to share your tokens with the bot stock!'
-                            )
-                            .setColor(0x5865F2)
-                            .setFooter({ text: 'TMC.LOL • Auto-Refresh' });
-
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('gen_public').setLabel('Generate Token').setStyle(ButtonStyle.Success).setEmoji('🔑')
-                        );
-
-                        const refreshRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('refresh_token_modal').setLabel('🔄 Refresh Token').setStyle(ButtonStyle.Primary).setEmoji('🔄')
-                        );
-
-                        const donateRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('donate_token_modal').setLabel('🎁 Donate Token').setStyle(ButtonStyle.Secondary).setEmoji('🎁')
-                        );
-
-                        return interaction.reply({ embeds: [embed], components: [row, refreshRow, donateRow] });
-                    }
-
-                    if (subArg === 'verify') {
-                        const embed = new EmbedBuilder()
-                            .setTitle("🛡️ VERIFICATION")
-                            .setDescription("Click below to verify.")
-                            .setColor(0x1ABC9C);
-
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('verify_btn').setLabel('VERIFY').setStyle(ButtonStyle.Success).setEmoji('🛡️')
-                        );
-                        return interaction.reply({ embeds: [embed], components: [row] });
-                    }
-
-                    if (subArg === 'redeem') {
-                        const embed = new EmbedBuilder()
-                            .setTitle("💎 KEY REDEEM")
-                            .setDescription("Got a code? Click below to redeem.")
-                            .setColor(0x5865F2);
-
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('redeem_btn').setLabel('REDEEM KEY').setStyle(ButtonStyle.Primary).setEmoji('💎')
-                        );
-                        return interaction.reply({ embeds: [embed], components: [row] });
-                    }
-
-                    if (subArg === 'support') {
-                        const embed = new EmbedBuilder()
-                            .setTitle("🛠️ SUPPORT")
-                            .setDescription("Select your department.")
-                            .setColor(0xFEE75C);
-
-                        const row = new ActionRowBuilder().addComponents(
-                            new StringSelectMenuBuilder()
-                                .setCustomId('support_select')
-                                .setPlaceholder('📂 Select department...')
-                                .addOptions([
-                                    { label: 'General Support', value: 'General Inquiry', emoji: '❓' },
-                                    { label: 'Token Help', value: 'Token Help', emoji: '🔑' }
-                                ])
-                        );
-                        return interaction.reply({ embeds: [embed], components: [row] });
-                    }
-                }
+                await interaction.showModal(modal);
             }
         }
 
         // --- BUTTON HANDLERS ---
         if (interaction.isButton()) {
-            // --- Refresh Token Modal Button - PUBLIC ---
-            if (interaction.customId === 'refresh_token_modal') {
-                const modal = new ModalBuilder()
-                    .setCustomId('refresh_token_modal_submit')
-                    .setTitle('🔄 Refresh Token (Get NEW Token)');
-
-                const bearerInput = new TextInputBuilder()
-                    .setCustomId('refresh_bearer_input')
-                    .setLabel("ENTER YOUR BEARER TOKEN")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(2000);
-
-                const refreshInput = new TextInputBuilder()
-                    .setCustomId('refresh_refresh_input')
-                    .setLabel("ENTER YOUR REFRESH TOKEN")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(2000);
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(bearerInput),
-                    new ActionRowBuilder().addComponents(refreshInput)
-                );
-
-                return await interaction.showModal(modal);
-            }
-
-            // --- Donate Token Modal Button ---
-            if (interaction.customId === 'donate_token_modal') {
-                const modal = new ModalBuilder()
-                    .setCustomId('donate_token_modal_submit')
-                    .setTitle('🎁 Donate Token to Bot');
-
-                const bearerInput = new TextInputBuilder()
-                    .setCustomId('donate_bearer_input')
-                    .setLabel("ENTER YOUR BEARER TOKEN")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(2000);
-
-                const refreshInput = new TextInputBuilder()
-                    .setCustomId('donate_refresh_input')
-                    .setLabel("ENTER YOUR REFRESH TOKEN")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(2000);
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(bearerInput),
-                    new ActionRowBuilder().addComponents(refreshInput)
-                );
-
-                return await interaction.showModal(modal);
-            }
-
             if (interaction.customId === 'gen_public') {
-                return await processTokenGeneration(interaction, 'Public Token');
-            }
-
-            if (interaction.customId === 'verify_btn') {
-                await interaction.deferReply({ flags: 64 });
-                const role = interaction.guild.roles.cache.get(MEMBER_ROLE_ID);
-                if (!role) return interaction.editReply({ content: "❌ Role not found." });
-                if (interaction.member.roles.cache.has(role.id)) {
-                    return interaction.editReply({ content: "⚠️ You are already verified!" });
-                }
-                try {
-                    await interaction.member.roles.add(role);
-                    return interaction.editReply({ content: "✅ **Verified!**" });
-                } catch (err) {
-                    return interaction.editReply({ content: "❌ Failed to verify." });
-                }
-            }
-
-            if (interaction.customId === 'redeem_btn') {
-                const modal = new ModalBuilder()
-                    .setCustomId('redeem_modal')
-                    .setTitle('💎 Secure Key Redemption');
-
-                const codeInput = new TextInputBuilder()
-                    .setCustomId('redeem_code_input')
-                    .setLabel("ENTER CODE")
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder("supporter-xxxx-xxxx-xxxx")
-                    .setRequired(true);
-
-                modal.addComponents(new ActionRowBuilder().addComponents(codeInput));
-                return await interaction.showModal(modal);
-            }
-
-            if (interaction.customId.startsWith('remove_')) {
-                const id = interaction.customId.replace('remove_', '');
-                const result = removeTokenById(id);
-                return interaction.reply({
-                    content: result.success ? `✅ ${result.message}` : `❌ ${result.message}`,
-                    flags: 64
-                });
-            }
-
-            if (interaction.customId === 'close_ticket_btn') {
-                if (!hasAdminAccess(interaction)) {
-                    return interaction.reply({ content: "❌ Only staff can close tickets.", flags: 64 });
-                }
-                await interaction.reply({ content: "🔒 Closing ticket..." });
-                setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+                return await processTokenGeneration(interaction);
             }
         }
 
-        if (interaction.isStringSelectMenu()) {
-            if (interaction.customId === 'support_select') {
-                const category = interaction.values[0];
-                await interaction.deferReply({ flags: 64 });
-
-                try {
-                    const ticketChannel = await interaction.guild.channels.create({
-                        name: `ticket-${interaction.user.username}`,
-                        type: ChannelType.GuildText,
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: [PermissionFlagsBits.ViewChannel],
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                            }
-                        ],
-                    });
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(`🎫 TICKET: ${category.toUpperCase()}`)
-                        .setDescription(`Welcome, <@${interaction.user.id}>.`)
-                        .setColor(0xFEE75C)
-                        .setTimestamp();
-
-                    const closeButton = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('close_ticket_btn').setLabel('CLOSE').setStyle(ButtonStyle.Danger).setEmoji('🔒')
-                    );
-
-                    await ticketChannel.send({ embeds: [embed], components: [closeButton] });
-                    return interaction.editReply({ content: `✅ Ticket created: <#${ticketChannel.id}>` });
-                } catch (err) {
-                    return interaction.editReply({ content: "❌ Failed to create ticket." });
-                }
-            }
-        }
-
+        // --- MODAL SUBMITS ---
         if (interaction.isModalSubmit()) {
-            // --- Refresh Token Modal Submit - PUBLIC ---
-            if (interaction.customId === 'refresh_token_modal_submit') {
-                try {
-                    await interaction.deferReply({ flags: 64 });
-                    
-                    const bearer = interaction.fields.getTextInputValue('refresh_bearer_input').trim();
-                    const refresh = interaction.fields.getTextInputValue('refresh_refresh_input').trim();
-                    
-                    if (!bearer || !refresh) {
-                        return interaction.editReply({
-                            content: '❌ **Error:** Both Bearer and Refresh tokens are required.'
-                        });
-                    }
-
-                    const validation = await validateSteamToken(bearer);
-                    
-                    if (!validation.valid) {
-                        return interaction.editReply({
-                            content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
-                        });
-                    }
-
-                    const refreshResult = await refreshToken(refresh);
-                    
-                    if (refreshResult.success) {
-                        const expiryText = humanExpiry(refreshResult.expiresAt);
-                        
-                        const embed = new EmbedBuilder()
-                            .setTitle('🔄 NEW Token Generated Successfully!')
-                            .setDescription('✅ A brand new token has been generated using your refresh token!')
-                            .setColor(0x2ECC71)
-                            .addFields(
-                                { name: '📋 NEW Bearer Token', value: `\`\`\`\n${refreshResult.bearer}\n\`\`\``, inline: false },
-                                { name: '📋 NEW Refresh Token', value: `\`\`\`\n${refreshResult.refresh}\n\`\`\``, inline: false },
-                                { name: '⏳ Valid For', value: expiryText, inline: true },
-                                { name: '📦 Stock', value: `${tokenStock.length} token(s) in stock`, inline: true },
-                                { name: '🔄 Auto-Refresh', value: 'Before expiry', inline: true }
-                            )
-                            .setTimestamp()
-                            .setFooter({ text: 'TMC.LOL • NEW Token Generated' });
-
-                        const row1 = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`copy_bearer_${Date.now()}`)
-                                .setLabel('📋 Copy Bearer')
-                                .setStyle(ButtonStyle.Primary)
-                        );
-
-                        const row2 = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`copy_refresh_${Date.now()}`)
-                                .setLabel('📋 Copy Refresh')
-                                .setStyle(ButtonStyle.Success)
-                        );
-
-                        return interaction.editReply({ 
-                            embeds: [embed], 
-                            components: [row1, row2]
-                        });
-                    } else {
-                        return interaction.editReply({
-                            content: `❌ **Failed to generate new token.**\n\nError: ${refreshResult.error || 'Unknown error'}\n\nMake sure your refresh token is valid and from the game.`
-                        });
-                    }
-                } catch (err) {
-                    console.error('[TMC.LOL] Refresh Token Modal Error:', err);
-                    return interaction.editReply({
-                        content: '❌ **Error:** Failed to generate new token. Please try again.'
-                    });
-                }
-            }
-
-            // --- Donate Token Modal Submit ---
-            if (interaction.customId === 'donate_token_modal_submit') {
-                try {
-                    await interaction.deferReply({ flags: 64 });
-                    
-                    const bearer = interaction.fields.getTextInputValue('donate_bearer_input').trim();
-                    const refresh = interaction.fields.getTextInputValue('donate_refresh_input').trim();
-                    
-                    if (!bearer || !refresh) {
-                        return interaction.editReply({
-                            content: '❌ **Error:** Both Bearer and Refresh tokens are required to donate.'
-                        });
-                    }
-
-                    const validation = await validateSteamToken(bearer);
-                    
-                    if (!validation.valid) {
-                        return interaction.editReply({
-                            content: `❌ **Invalid Token!** The token you provided appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
-                        });
-                    }
-
-                    tokenStock.push({
-                        bearer: bearer,
-                        refresh: refresh,
-                        addedAt: Date.now(),
-                        expiresAt: validation.expiresAt,
-                        donatedBy: interaction.user.id,
-                        donatedByTag: interaction.user.tag
-                    });
-
-                    const expiryText = humanExpiry(validation.expiresAt);
-                    
-                    const embed = new EmbedBuilder()
-                        .setTitle('🎁 Token Donated Successfully!')
-                        .setDescription(`✅ Your token has been donated to the bot stock!`)
-                        .setColor(0x2ECC71)
-                        .addFields(
-                            { name: '👤 Donated By', value: `<@${interaction.user.id}>`, inline: true },
-                            { name: '⏳ Valid For', value: expiryText, inline: true },
-                            { name: '📦 Total Stock', value: `${tokenStock.length} token(s)`, inline: true }
-                        )
-                        .setTimestamp()
-                        .setFooter({ text: 'TMC.LOL • Token Donation' });
-
-                    return interaction.editReply({ embeds: [embed] });
-                } catch (err) {
-                    console.error('[TMC.LOL] Donate Token Modal Error:', err);
-                    return interaction.editReply({
-                        content: '❌ **Error:** Failed to donate token. Please try again.'
-                    });
-                }
-            }
-
             if (interaction.customId === 'stock_modal') {
                 try {
-                    if (!hasAdminAccess(interaction)) {
-                        return interaction.reply({
-                            content: `❌ **Access Denied:** You need the <@&${ADMIN_ROLE_ID}> role or admin permissions.`,
-                            flags: 64
-                        });
-                    }
-
                     await interaction.deferReply({ flags: 64 });
                     
                     const bearer = interaction.fields.getTextInputValue('stock_bearer_input').trim();
@@ -1684,6 +765,15 @@ ${genId}
                     if (!bearer || !refresh) {
                         return interaction.editReply({
                             content: '❌ **Error:** Both Bearer and Refresh tokens are required.'
+                        });
+                    }
+
+                    // Validate the token
+                    const validation = await validateSteamToken(bearer);
+                    
+                    if (!validation.valid) {
+                        return interaction.editReply({
+                            content: `❌ **Invalid Token!** The token appears to be expired or invalid.\n\n**Valid for:** ${humanExpiry(validation.expiresAt)}`
                         });
                     }
                     
@@ -1711,85 +801,12 @@ ${genId}
                     }
                 }
             }
-
-            if (interaction.customId === 'redeem_modal') {
-                await interaction.deferReply({ flags: 64 });
-                const code = interaction.fields.getTextInputValue('redeem_code_input').trim();
-
-                if (validCodes.has(code)) {
-                    validCodes.delete(code);
-
-                    const guild = interaction.guild;
-                    const member = interaction.member;
-                    const supporterRole = guild.roles.cache.get(SUPPORTER_ROLE_ID);
-
-                    if (!supporterRole) {
-                        return interaction.editReply({ content: `🎉 **Code Validated!** However, the Supporter Role couldn't be found.` });
-                    }
-
-                    try {
-                        await member.roles.add(supporterRole);
-                        return interaction.editReply({ content: `🎉 **Redemption Successful!** Code \`${code}\` verified. Supporter role assigned!` });
-                    } catch (err) {
-                        console.error("Supporter Role Assignment Error:", err);
-                        return interaction.editReply({ content: `⚠️ Code valid, but failed to assign role.` });
-                    }
-                } else {
-                    return interaction.editReply({ content: `❌ **Invalid Code:** \`${code}\` does not exist or has been claimed.` });
-                }
-            }
         }
     } catch (err) {
         console.error(`[TMC.LOL] Interaction Error:`, err);
         if (!interaction.replied && !interaction.deferred) {
             interaction.reply({ content: "❌ An error occurred. Please try again.", flags: 64 }).catch(() => {});
         }
-    }
-});
-
-// --- COPY BUTTON HANDLER ---
-client.on('interactionCreate', async interaction => {
-    try {
-        if (interaction.isButton() && interaction.customId.startsWith('copy_')) {
-            const parts = interaction.customId.split('_');
-            const type = parts[1];
-            
-            const embed = interaction.message.embeds[0];
-            if (!embed) return;
-            
-            let token = '';
-            const fields = embed.fields;
-            for (const field of fields) {
-                if (field.name.includes('Bearer') && type === 'bearer') {
-                    token = field.value.replace(/```\n/g, '').replace(/\n```/g, '').trim();
-                    break;
-                }
-                if (field.name.includes('Refresh') && type === 'refresh') {
-                    token = field.value.replace(/```\n/g, '').replace(/\n```/g, '').trim();
-                    break;
-                }
-            }
-            
-            if (!token) {
-                return interaction.reply({ 
-                    content: '❌ Could not find token to copy.', 
-                    flags: 64 
-                });
-            }
-            
-            await interaction.reply({
-                content: `✅ **${type.charAt(0).toUpperCase() + type.slice(1)} Token copied!**\n\`\`\`\n${token}\n\`\`\`\n(Click the three dots → Copy Message to copy it)`,
-                flags: 64
-            });
-            
-            try {
-                await interaction.user.send({
-                    content: `📋 **${type.charAt(0).toUpperCase() + type.slice(1)} Token**\n\`\`\`\n${token}\n\`\`\``
-                });
-            } catch (dmErr) {}
-        }
-    } catch (err) {
-        console.error('[TMC.LOL] Copy button error:', err);
     }
 });
 
@@ -1801,7 +818,7 @@ const server = http.createServer((req, res) => {
         return;
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('TMC.LOL Token Generator Bot is active!\nAuto-refreshes before expiry.\n');
+    res.end('Token Generator Bot is active!\nAuto-refreshes before expiry.\n');
 });
 
 const PORT = process.env.PORT || 10000;
