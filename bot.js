@@ -32,7 +32,6 @@ const slurPatterns = [
   /\bc[uú]nt\b/i,                  // C-word
   /\bf[uú]ck\b/i,                  // F-word
   /\bsh[iìí]t\b/i,                 // Sh-word
-  // Add more patterns as needed
 ];
 
 client.once('clientReady', (readyClient) => {
