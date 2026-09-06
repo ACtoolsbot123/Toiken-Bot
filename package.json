@@ -1,0 +1,17 @@
+{
+  "name": "discord-link-blocker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Discord bot that removes Discord invite links.",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "discord.js": "^14.24.2",
+    "dotenv": "^17.2.2"
+  }
+}
