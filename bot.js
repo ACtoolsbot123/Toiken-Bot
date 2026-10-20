@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 // ============================================
 // DISCORD BOT SETUP
@@ -130,12 +130,54 @@ function challengeBytesAuto(challenge) {
   return Buffer.from(s, 'utf8');
 }
 
+// headset signer (device_signer.py style): bytes on stdin, b64 sig on stdout
+// the identity private key never leaves trustzone, so this is what actually
+// signs when a real device cert is in use
+function runSignerOnce(cmd, data) {
+    return new Promise((resolve, reject) => {
+        const p = spawn(cmd, { shell: true, windowsHide: true });
+        let out = '';
+        let err = '';
+        const timer = setTimeout(() => {
+            try { p.kill(); } catch (e) {}
+            reject(new Error('signer timed out after 30s'));
+        }, 30000);
+        p.stdout.on('data', (d) => { out += d; });
+        p.stderr.on('data', (d) => { err += d; });
+        p.on('error', (e) => { clearTimeout(timer); reject(e); });
+        p.on('close', (code) => {
+            clearTimeout(timer);
+            if (code !== 0) {
+                reject(new Error(`signer exit ${code}: ${trim(err.split('\n').filter(Boolean).pop() || '(no stderr)', 400)}`));
+            } else {
+                const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                if (!lines.length) reject(new Error('signer gave no signature'));
+                else resolve(lines[lines.length - 1]);
+            }
+        });
+        p.stdin.on('error', () => {});
+        p.stdin.write(typeof data === 'string' ? Buffer.from(data, 'utf8') : data);
+        p.stdin.end();
+    });
+}
+
+async function runSigner(cmd, data) {
+    try {
+        return await runSignerOnce(cmd, data);
+    } catch (e) {
+        // signer flakes on frida/adb reconnects - same bytes, one more go
+        await new Promise((r) => setTimeout(r, 800));
+        return runSignerOnce(cmd, data);
+    }
+}
+
 class HardwareAuthClient {
-    constructor(appToken, deviceCert, privateKeyPem) {
+    constructor(appToken, deviceCert, privateKeyPem, sigCmd) {
         this.baseUrl = 'https://graph.facebook-hardware.com';
         this.appToken = String(appToken || '').trim();
         this.deviceCert = restorePem(deviceCert);
         this.privateKeyPem = restorePem(privateKeyPem);
+        this.sigCmd = String(sigCmd || '').trim();
         this.signatureAlgorithm = 'SHA256';
         this.registered = false;
         this.certInfo = certInfo(this.deviceCert);
@@ -214,7 +256,15 @@ class HardwareAuthClient {
         } catch (e) {
             if (!isCertReject(e)) throw e;
 
-            // server has never seen this identity - enroll it, then retry
+            const x = (() => { try { return new crypto.X509Certificate(this.deviceCert); } catch (err) { return null; } })();
+            if (x && x.issuer === x.subject) {
+                // self-signed identity: /register rejects it with the same
+                // 2699002, so don't waste the call - the cert itself is the problem
+                e.registerDetail = 'cert is self-signed - /register refuses it too; use the device identity cert';
+                throw e;
+            }
+
+            // CA-chained cert the server has never seen - enroll it, then retry
             let regErr = null;
             try {
                 await this.post('/register', {
@@ -265,20 +315,28 @@ class HardwareAuthClient {
         return sign.sign(this.privateKeyPem, 'base64');
     }
 
-    signChallenge(challenge, format) {
+    // sig_cmd (headset) first, local key as fallback - same order as ones.py
+    async sign(data) {
+        if (this.sigCmd) return runSigner(this.sigCmd, data);
+        if (this.privateKeyPem) return this.signData(data);
+        throw new Error('nothing to sign with - no sig_cmd and no private_key in the setup');
+    }
+
+    async signChallenge(challenge, format) {
         const data = format === 'raw'
             ? Buffer.from(String(challenge), 'utf8')
             : challengeBytesAuto(challenge);
-        return this.signData(data);
+        return this.sign(data);
     }
 
     async step2Login(challenge, socSerial, entId, format) {
+        const signed = await this.signChallenge(challenge, format);
         return this.post('/login', {
             access_token: this.appToken,
             auth_protocol_version: 1,
             device_certificate: this.b64Der(),
             challenge: challenge,
-            signed_challenge: this.signChallenge(challenge, format),
+            signed_challenge: signed,
             soc_serial: socSerial || '',
             existing_device_ent_id: String(entId || '0'),
         });
@@ -393,7 +451,7 @@ async function flowAttest(setup) {
         throw new Error(`set_up is missing: ${missing.join(', ')} - run /set_up first`);
     }
 
-    const auth = new HardwareAuthClient(setup.app_token, cert, key);
+    const auth = new HardwareAuthClient(setup.app_token, cert, key, setup.sig_cmd);
 
     const login = await flowLogin(auth, setup);
     const dat = login.access_token;
@@ -417,7 +475,7 @@ async function flowAttest(setup) {
     }
 
     const payload = buildPayload(setup, nonce, clientChallenge);
-    const payloadSignature = auth.signData(JSON.stringify(payload));
+    const payloadSignature = await auth.sign(JSON.stringify(payload));
     const inner = { payload: payload, payload_signature: payloadSignature, version: '2' };
 
     let jwt;
@@ -573,9 +631,9 @@ function errorDetail(error, setup) {
 
         const sub = g.error_subcode;
         if (sub === SUBCODE_CERT_BAD || sub === SUBCODE_CERT_BAD_ALT) {
-            detail += `\n→ server does not recognize device_cert - /set_up with the device identity cert`;
+            detail += `\n→ server does not recognize device_cert - /set_up with the device identity cert (Attest\\device_identity.pem)`;
         } else if (sub === SUBCODE_CHALLENGE) {
-            detail += `\n→ signed_challenge rejected - private_key does not match device_cert`;
+            detail += `\n→ signed_challenge rejected - private_key does not match device_cert (sig_cmd / headset signer is what signs a real cert)`;
         } else if (sub === SUBCODE_REAUTH) {
             detail += `\n→ server wants a different existing_device_ent_id`;
         }
@@ -648,16 +706,18 @@ async function handleSetUps(interaction) {
 
     const match = keyMatchesCert(privateKey, deviceCert);
     const selfSigned = x509.issuer === x509.subject;
+    const hasSigner = Boolean(String(setup.sig_cmd || '').trim());
 
     const lines = [
         '✅ **set_up saved**',
         `- 📄 \`${saved}\``,
         `- 📐 cert: \`${certInfo(deviceCert)}\``,
-        `- 🔑 key matches cert: **${match === true ? 'yes' : match === false ? 'NO - step2 login will come back 2699003' : 'unknown'}**`,
+        `- 🔑 key matches cert: **${match === true ? 'yes' : match === false ? (hasSigner ? 'NO - sig_cmd (headset) does the signing, local key is fallback only' : 'NO - step2 login will come back 2699003') : 'unknown'}**`,
+        `- 🧷 signer: \`${setup.sig_cmd ? 'sig_cmd (headset)' : 'local private_key'}\``,
         `- 📦 \`${packageName}\`  🔢 serial \`${socSerial}\``,
     ];
     if (selfSigned) {
-        lines.push('- ⚠️ cert is self-signed - the server answers 400 (2699002/1891224) until it is registered; the flow auto-registers it on first run');
+        lines.push('- ⚠️ cert is self-signed - the server answers 400 (2699002/1891224) and /register refuses it too; use the device identity cert (Attest\\device_identity.pem)');
     }
     if (!setup.app_token) {
         lines.push('- ⚠️ no app_token saved - pass `app_token` here or the flow cannot log in');
