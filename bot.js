@@ -1,8 +1,9 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 
 // ============================================
 // DISCORD BOT SETUP
@@ -18,31 +19,19 @@ if (!token) {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
   ],
 });
-
-const discordInvitePattern = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord(?:app)?\.com\/invite)\/[^\s<]+/i;
-
-const slurPatterns = [
-  /\bn[iìíîï]gg[ae3]r?\b/i,
-  /\bf[ae]gg[o0]t\b/i,
-  /\br[ae]t[ae]rd\b/i,
-  /\bc[uú]nt\b/i,
-  /\bf[uú]ck\b/i,
-  /\bsh[iìí]t\b/i,
-];
 
 // ============================================
 // HARDWARE AUTHENTICATION SERVICE CLIENT
 // ============================================
 
 class HardwareAuthClient {
-    constructor(appToken, deviceCert) {
+    constructor(appToken, deviceCert, privateKeyPem) {
         this.baseUrl = 'https://graph.facebook-hardware.com';
         this.appToken = appToken;
         this.deviceCert = deviceCert;
+        this.privateKeyPem = privateKeyPem;
     }
 
     getHeaders() {
@@ -69,14 +58,22 @@ class HardwareAuthClient {
         return response.data;
     }
 
-    async step2Login(challenge, signedChallengeB64, socSerial, existingEntId = '0') {
+    signChallenge(challenge) {
+        const sign = crypto.createSign('SHA256');
+        sign.update(challenge);
+        sign.end();
+        return sign.sign(this.privateKeyPem, 'base64');
+    }
+
+    async step2Login(challenge, socSerial, existingEntId = '0') {
+        const signedChallenge = this.signChallenge(challenge);
         const url = `${this.baseUrl}/login`;
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
             device_certificate: this.deviceCert,
             challenge: challenge,
-            signed_challenge: signedChallengeB64,
+            signed_challenge: signedChallenge,
             soc_serial: socSerial,
             existing_device_ent_id: existingEntId
         };
@@ -126,14 +123,22 @@ client.once('clientReady', async (readyClient) => {
     const commands = [
         new SlashCommandBuilder()
             .setName('attest')
-            .setDescription('Run Horizon hardware attestation flow simulation')
+            .setDescription('Run Horizon hardware attestation flow')
             .addStringOption(option =>
                 option.setName('app_token')
                     .setDescription('Application Hardware Token')
                     .setRequired(true))
             .addStringOption(option =>
                 option.setName('device_cert')
-                    .setDescription('Device Identity PEM')
+                    .setDescription('Device Certificate PEM string')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('private_key')
+                    .setDescription('Device Private Key PEM string')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('soc_serial')
+                    .setDescription('SoC Serial Number')
                     .setRequired(true))
             .addStringOption(option =>
                 option.setName('package_name')
@@ -147,11 +152,9 @@ client.once('clientReady', async (readyClient) => {
         const GUILD_ID = process.env.GUILD_ID;
 
         if (CLIENT_ID && GUILD_ID) {
-            // Register instantly to your specific server
             await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
             console.log('🔗 Successfully registered guild slash commands instantly.');
         } else if (CLIENT_ID) {
-            // Fallback to global commands if GUILD_ID is not set
             await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
             console.log('🔗 Successfully registered global slash commands.');
         } else {
@@ -162,34 +165,6 @@ client.once('clientReady', async (readyClient) => {
     }
 });
 
-// Moderation Event Handler
-client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.guild) {
-    return;
-  }
-
-  const containsInvite = discordInvitePattern.test(message.content);
-  const containsSlur = slurPatterns.some(pattern => pattern.test(message.content));
-
-  if (!containsInvite && !containsSlur) {
-    return;
-  }
-
-  if (!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.ManageMessages)) {
-    return;
-  }
-
-  try {
-    await message.delete();
-    let reason = containsInvite && containsSlur ? 'Discord invite links and inappropriate language' : containsInvite ? 'Discord invite links' : 'inappropriate language';
-    
-    await message.author.send(`❌ Your message was removed because it contained ${reason}.`).catch(() => {});
-  } catch (error) {
-    console.error('❌ Could not remove message:', error.message);
-  }
-});
-
-// Slash Command Handler
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -198,21 +173,26 @@ client.on('interactionCreate', async (interaction) => {
 
         const appToken = interaction.options.getString('app_token', true);
         const deviceCert = interaction.options.getString('device_cert', true);
+        const privateKey = interaction.options.getString('private_key', true);
+        const socSerial = interaction.options.getString('soc_serial', true);
         const packageName = interaction.options.getString('package_name', true);
 
-        const authClient = new HardwareAuthClient(appToken, deviceCert);
+        const authClient = new HardwareAuthClient(appToken, deviceCert, privateKey);
 
         try {
+            // Step 1: Login Request
             const step1 = await authClient.step1LoginRequest();
-            const mockSignedChallenge = Buffer.from('MOCK_TZ_SIGNATURE_FOR_PC').toString('base64');
-            const socSerial = 'MOCK_SOC_SERIAL';
 
-            const step2 = await authClient.step2Login(step1.challenge, mockSignedChallenge, socSerial);
+            // Step 2: Login to obtain DAT with signed challenge
+            const step2 = await authClient.step2Login(step1.challenge, socSerial);
             const dat = step2.access_token;
 
+            // Step 3: Fetch Nonce via GraphQL
             const traceId = Buffer.from(Date.now().toString()).toString('base64url').substring(0, 20);
             const nonce = await authClient.step3GetNonce(dat, packageName, traceId);
 
+            // Step 4: Construct Payload
+            const signedChallenge = authClient.signChallenge(step1.challenge);
             const payloadObj = {
                 payload: {
                     hlos_metadata: {
@@ -221,7 +201,7 @@ client.on('interactionCreate', async (interaction) => {
                         package_metadata: {
                             package_id: packageName,
                             signatures: 'MOCK_SIG',
-                            version_code: '100'
+                            version_code: '1316'
                         },
                         superuser_properties: {},
                         shell_properties: {}
@@ -236,10 +216,11 @@ client.on('interactionCreate', async (interaction) => {
                         ts: Date.now().toString()
                     }
                 },
-                payload_signature: mockSignedChallenge,
+                payload_signature: signedChallenge,
                 version: '2'
             };
 
+            // Step 5: Get Attestation JWT
             const jwt = await authClient.step5GetJwt(dat, payloadObj, traceId);
 
             await interaction.editReply(`✅ **Attestation flow executed successfully.**\n- **DAT obtained:** \`${dat.substring(0, 10)}...\`\n- **Nonce:** \`${nonce}\`\n- **JWT Received:** \`${jwt.substring(0, 15)}...\``);
@@ -284,7 +265,7 @@ app.get('/status', (req, res) => {
         </style>
       </head>
       <body>
-        <h1>🤖 Hardware Attestation & Moderation Bot</h1>
+        <h1>🤖 Hardware Attestation Bot</h1>
         <div class="info">
           <p><strong>Status:</strong> <span class="status">✅ Online</span></p>
           <p><strong>Bot:</strong> ${client.user ? client.user.tag : 'Offline'}</p>
@@ -293,7 +274,6 @@ app.get('/status', (req, res) => {
         </div>
         <h3>🛡️ Features</h3>
         <div class="feature">⚙️ `/attest` Horizon Hardware Attestation Workflow</div>
-        <div class="feature">🔗 Discord Link & Slur Moderation Filter</div>
         <p style="margin-top: 30px; color: #64748b; font-size: 14px;">
           Powered by Render.com
         </p>
