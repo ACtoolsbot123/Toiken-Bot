@@ -124,26 +124,6 @@ client.once('clientReady', async (readyClient) => {
         new SlashCommandBuilder()
             .setName('attest')
             .setDescription('Run Horizon hardware attestation flow')
-            .addStringOption(option =>
-                option.setName('app_token')
-                    .setDescription('Application Hardware Token')
-                    .setRequired(true))
-            .addStringOption(option =>
-                option.setName('device_cert')
-                    .setDescription('Device Certificate PEM string')
-                    .setRequired(true))
-            .addStringOption(option =>
-                option.setName('private_key')
-                    .setDescription('Device Private Key PEM string')
-                    .setRequired(true))
-            .addStringOption(option =>
-                option.setName('soc_serial')
-                    .setDescription('SoC Serial Number')
-                    .setRequired(true))
-            .addStringOption(option =>
-                option.setName('package_name')
-                    .setDescription('Target package name')
-                    .setRequired(true))
     ].map(command => command.toJSON());
 
     try {
@@ -171,11 +151,17 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'attest') {
         await interaction.deferReply();
 
-        const appToken = interaction.options.getString('app_token', true);
-        const deviceCert = interaction.options.getString('device_cert', true);
-        const privateKey = interaction.options.getString('private_key', true);
-        const socSerial = interaction.options.getString('soc_serial', true);
-        const packageName = interaction.options.getString('package_name', true);
+        // Hardcoded with your exact values to prevent truncation / 400 errors from chat parameter limits
+        const appToken = 'HW|430457441064115|a7332e35cdd419007366bcf2703befa6';
+        const deviceCert = `-----BEGIN CERTIFICATE-----
+MIIEqDCCA5CgAwIBAgIJAJNurL4H8gHfMA0GCSqGSIb3DQEBBQUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODAyMjkwMTMzNDZaFw0zNTA3MTcwMTMzNDZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANaTGQTexgskse3HYuDZ2CU+Ps1s6x3i/waMqOi8qM1r03hupwqnbOYOuw+ZNVn/2T53qUPn6D1LZLjk/qLT5lbx4meoG7+yMLV4wgRDvkxyGLhG9SEVhvA4oU6Jwr44f46+z4/Kw9oe4zDJ6pPQp8PcSvNQIg1QCAcy4ICXF+5qBTNZ5qaU7Cyz8oSgpGbIepTYOzEJOmc3Li9kEsBubULxWBjf/gOBzAzURNps3cO4JFgZSAGzJWQTT7/emMkod0jb9WdqVA2BVMi7yge54kdVMxHEa5r3b97szI5p58ii0I54JiCUP5lyfTwE/nKZHZnfm644oLIXf6MdW2r+6R8CAQOjgfwwgfkwHQYDVR0OBBYEFEhZAFY9JyxGrhGGBaR0GawJyowRMIHJBgNVHSMEgcEwgb6AFEhZAFY9JyxGrhGGBaR0GawJyowRoYGapIGXMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbYIJAJNurL4H8gHfMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAHqvlozrUMRBBVEY0NqrrwFbinZaJ6cVosK0TyIUFf/azgMJWr+kLfcHCHJsIGnlw27drgQAvilFLAhLwn62oX6snb4YLCBOsVMR9FXYJLZW2+TcIkCRLXWG/oiVHQGo/rWuWkJgU134NDEFJCJGjDbiLCpe+ZTWHdcwauTJ9pUbo8EvHRkU3cYfGmLaLfgn9gP+pWA7LFQNvXwBnDa6sppCccEX31I828XzgXpJ4O+mDL1/dBd+ek8ZPUP0IgdyZm5MTYPhvVqGCHzzTy3sIeJFymwrsBbmg2OAUNLEMO6nwmocSdN2ClirfxqCzJOLSDE4QyS9BAH6EhY6UFcOaE0=
+-----END CERTIFICATE-----`;
+        // NOTE: Replace this with your full private key PEM contents if you haven't yet
+        const privateKey = `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDSaQE...
+-----END PRIVATE KEY-----`;
+        const socSerial = '3487C10GCM08BD';
+        const packageName = 'com.VinciGames.ProjectM';
 
         const authClient = new HardwareAuthClient(appToken, deviceCert, privateKey);
 
