@@ -18,8 +18,21 @@ if (!token) {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
 });
+
+const discordInvitePattern = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord(?:app)?\.com\/invite)\/[^\s<]+/i;
+
+const slurPatterns = [
+  /\bn[iìíîï]gg[ae3]r?\b/i,
+  /\bf[ae]gg[o0]t\b/i,
+  /\br[ae]t[ae]rd\b/i,
+  /\bc[uú]nt\b/i,
+  /\bf[uú]ck\b/i,
+  /\bsh[iìí]t\b/i,
+];
 
 // ============================================
 // HARDWARE AUTHENTICATION SERVICE CLIENT
@@ -130,15 +143,53 @@ client.once('clientReady', async (readyClient) => {
 
     try {
         const rest = new REST({ version: '10' }).setToken(token);
-        if (process.env.CLIENT_ID) {
-            await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-            console.log('🔗 Successfully registered application slash commands.');
+        const CLIENT_ID = process.env.CLIENT_ID;
+        const GUILD_ID = process.env.GUILD_ID;
+
+        if (CLIENT_ID && GUILD_ID) {
+            // Register instantly to your specific server
+            await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+            console.log('🔗 Successfully registered guild slash commands instantly.');
+        } else if (CLIENT_ID) {
+            // Fallback to global commands if GUILD_ID is not set
+            await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+            console.log('🔗 Successfully registered global slash commands.');
+        } else {
+            console.log('⚠️ CLIENT_ID missing; skipped command registration.');
         }
     } catch (error) {
         console.error('❌ Failed to register slash commands:', error);
     }
 });
 
+// Moderation Event Handler
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || !message.guild) {
+    return;
+  }
+
+  const containsInvite = discordInvitePattern.test(message.content);
+  const containsSlur = slurPatterns.some(pattern => pattern.test(message.content));
+
+  if (!containsInvite && !containsSlur) {
+    return;
+  }
+
+  if (!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.ManageMessages)) {
+    return;
+  }
+
+  try {
+    await message.delete();
+    let reason = containsInvite && containsSlur ? 'Discord invite links and inappropriate language' : containsInvite ? 'Discord invite links' : 'inappropriate language';
+    
+    await message.author.send(`❌ Your message was removed because it contained ${reason}.`).catch(() => {});
+  } catch (error) {
+    console.error('❌ Could not remove message:', error.message);
+  }
+});
+
+// Slash Command Handler
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -152,22 +203,16 @@ client.on('interactionCreate', async (interaction) => {
         const authClient = new HardwareAuthClient(appToken, deviceCert);
 
         try {
-            // Step 1: Login Request
             const step1 = await authClient.step1LoginRequest();
-            
-            // Note: PC cannot generate real TZ signatures; mock placeholder signature used for testing structure
             const mockSignedChallenge = Buffer.from('MOCK_TZ_SIGNATURE_FOR_PC').toString('base64');
             const socSerial = 'MOCK_SOC_SERIAL';
 
-            // Step 2: Login to obtain DAT
             const step2 = await authClient.step2Login(step1.challenge, mockSignedChallenge, socSerial);
             const dat = step2.access_token;
 
-            // Step 3: Fetch Nonce via GraphQL
             const traceId = Buffer.from(Date.now().toString()).toString('base64url').substring(0, 20);
             const nonce = await authClient.step3GetNonce(dat, packageName, traceId);
 
-            // Step 4: Construct Payload (Local Simulation Structure)
             const payloadObj = {
                 payload: {
                     hlos_metadata: {
@@ -195,7 +240,6 @@ client.on('interactionCreate', async (interaction) => {
                 version: '2'
             };
 
-            // Step 5: Get Attestation JWT
             const jwt = await authClient.step5GetJwt(dat, payloadObj, traceId);
 
             await interaction.editReply(`✅ **Attestation flow executed successfully.**\n- **DAT obtained:** \`${dat.substring(0, 10)}...\`\n- **Nonce:** \`${nonce}\`\n- **JWT Received:** \`${jwt.substring(0, 15)}...\``);
@@ -231,7 +275,7 @@ app.get('/status', (req, res) => {
   res.send(`
     <html>
       <head>
-        <title>Discord Hardware Attestation Bot Status</title>
+        <title>Discord Bot Status</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; }
           .status { color: #4ade80; font-weight: bold; }
@@ -240,7 +284,7 @@ app.get('/status', (req, res) => {
         </style>
       </head>
       <body>
-        <h1>🤖 Hardware Attestation Bot</h1>
+        <h1>🤖 Hardware Attestation & Moderation Bot</h1>
         <div class="info">
           <p><strong>Status:</strong> <span class="status">✅ Online</span></p>
           <p><strong>Bot:</strong> ${client.user ? client.user.tag : 'Offline'}</p>
@@ -249,6 +293,7 @@ app.get('/status', (req, res) => {
         </div>
         <h3>🛡️ Features</h3>
         <div class="feature">⚙️ `/attest` Horizon Hardware Attestation Workflow</div>
+        <div class="feature">🔗 Discord Link & Slur Moderation Filter</div>
         <p style="margin-top: 30px; color: #64748b; font-size: 14px;">
           Powered by Render.com
         </p>
@@ -261,5 +306,4 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`🌐 Web server listening on port ${port}`);
 });
 
-// Login to Discord
 client.login(token);
