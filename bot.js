@@ -193,19 +193,28 @@ client.on('interactionCreate', async (interaction) => {
 
         const authClient = new HardwareAuthClient(appToken, deviceCert, privateKey);
 
+        const at = async (name, fn) => {
+            try {
+                return await fn();
+            } catch (e) {
+                e.step = name;
+                throw e;
+            }
+        };
+
         try {
             // Step 1: Login Request
-            const step1 = await authClient.step1LoginRequest();
+            const step1 = await at('step1 login_request', () => authClient.step1LoginRequest());
 
             // Step 2: Login to obtain DAT with signed challenge
-            const step2 = await authClient.step2Login(step1.challenge, socSerial);
+            const step2 = await at('step2 login', () => authClient.step2Login(step1.challenge, socSerial));
             const dat = step2.access_token;
 
             // Step 3: Fetch Nonce via GraphQL
             // client_challenge must be HEX; trace_id must be b64url sha1 of it
             const clientChallenge = crypto.randomBytes(16).toString('hex');
             const traceId = crypto.createHash('sha1').update(clientChallenge).digest('base64url');
-            const nonce = await authClient.step3GetNonce(dat, packageName, traceId);
+            const nonce = await at('step3 graphql nonce', () => authClient.step3GetNonce(dat, packageName, traceId));
 
             // Step 4: Construct Payload
             const signedChallenge = authClient.signChallenge(step1.challenge);
@@ -237,12 +246,21 @@ client.on('interactionCreate', async (interaction) => {
             };
 
             // Step 5: Get Attestation JWT
-            const jwt = await authClient.step5GetJwt(dat, payloadObj, traceId);
+            const jwt = await at('step5 graphql jwt', () => authClient.step5GetJwt(dat, payloadObj, traceId));
 
             await interaction.editReply(`✅ **Attestation flow executed successfully.**\n- **DAT obtained:** \`${dat.substring(0, 10)}...\`\n- **Nonce:** \`${nonce}\`\n- **JWT Received:** \`${jwt.substring(0, 15)}...\``);
         } catch (error) {
-            console.error(error);
+            console.error('--- ATTESTATION FAILURE ---');
+            if (error.step) console.error('step:', error.step);
+            if (error.config) {
+                console.error('url:', (error.config.method || '') + ' ' + error.config.url);
+                try { console.error('body:', JSON.stringify(error.config.data || error.config.params, null, 2)); } catch (_) {}
+            }
+            if (error.response) console.error('status:', error.response.status, 'data:', JSON.stringify(error.response.data));
+            console.error('---------------------------');
+
             let detail = error.message;
+            if (error.step) detail = `[${error.step}] ${detail}`;
             if (error.response) {
                 const body = typeof error.response.data === 'string'
                     ? error.response.data
