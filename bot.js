@@ -41,15 +41,19 @@ class HardwareAuthClient {
         };
     }
 
+    normalizePem() {
+        // keep real newlines so JSON.stringify turns them into proper \n escapes on the wire.
+        // stripping all newlines made an unparseable one-line PEM -> guaranteed 400.
+        return this.deviceCert.replace(/\r\n/g, '\n').trim();
+    }
+
     async step1LoginRequest() {
         const url = `${this.baseUrl}/login_request`;
-        // Flatten deviceCert to a single line to prevent literal escaped \n causing 400 errors
-        const flatCert = this.deviceCert.replace(/\\r/g, '').replace(/\\n/g, '').replace(/\r?\n|\r/g, '');
 
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: flatCert,
+            device_certificate: this.normalizePem(),
             supported_algorithms: [
                 'sha256WithRSAEncryption',
                 'sha384WithRSAEncryption',
@@ -71,12 +75,11 @@ class HardwareAuthClient {
     async step2Login(challenge, socSerial, existingEntId = '0') {
         const signedChallenge = this.signChallenge(challenge);
         const url = `${this.baseUrl}/login`;
-        const flatCert = this.deviceCert.replace(/\\r/g, '').replace(/\\n/g, '').replace(/\r?\n|\r/g, '');
 
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: flatCert,
+            device_certificate: this.normalizePem(),
             challenge: challenge,
             signed_challenge: signedChallenge,
             soc_serial: socSerial,
@@ -219,14 +222,16 @@ nm0mDZGssTycEzbTtc9CjCw==
             const step2 = await authClient.step2Login(step1.challenge, socSerial);
             const dat = step2.access_token;
 
-            const traceId = Buffer.from(Date.now().toString()).toString('base64url').substring(0, 20);
+            // tut: client_challenge is hex, trace_id is b64url sha1 of the client challenge
+            const clientChallenge = crypto.randomBytes(16).toString('hex');
+            const traceId = crypto.createHash('sha1').update(clientChallenge).digest('base64url');
             const nonce = await authClient.step3GetNonce(dat, packageName, traceId);
 
             const signedChallenge = authClient.signChallenge(step1.challenge);
             const payloadObj = {
                 payload: {
                     hlos_metadata: {
-                        client_challenge: traceId,
+                        client_challenge: clientChallenge,
                         server_challenge: nonce,
                         package_metadata: {
                             package_id: packageName,
@@ -254,8 +259,15 @@ nm0mDZGssTycEzbTtc9CjCw==
 
             await interaction.editReply(`✅ **Attestation flow executed successfully.**\n- **DAT obtained:** \`${dat.substring(0, 10)}...\`\n- **Nonce:** \`${nonce}\`\n- **JWT Received:** \`${jwt.substring(0, 15)}...\``);
         } catch (error) {
-            console.error(error);
-            await interaction.editReply(`❌ Attestation workflow failed: \`${error.message}\``);
+            console.error('❌ Attestation error:', error.message);
+            if (error.response) {
+                console.error('   status:', error.response.status);
+                console.error('   body:', JSON.stringify(error.response.data));
+            }
+            const detail = error.response
+                ? `HTTP ${error.response.status}: \`${JSON.stringify(error.response.data)}\``
+                : `\`${error.message}\``;
+            await interaction.editReply(`❌ Attestation workflow failed: ${detail}`);
         }
     }
 });
