@@ -43,10 +43,13 @@ class HardwareAuthClient {
 
     async step1LoginRequest() {
         const url = `${this.baseUrl}/login_request`;
+        // Flatten deviceCert to a single line to prevent literal escaped \n causing 400 errors
+        const flatCert = this.deviceCert.replace(/\\r/g, '').replace(/\\n/g, '').replace(/\r?\n|\r/g, '');
+
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: this.deviceCert,
+            device_certificate: flatCert,
             supported_algorithms: [
                 'sha256WithRSAEncryption',
                 'sha384WithRSAEncryption',
@@ -68,10 +71,12 @@ class HardwareAuthClient {
     async step2Login(challenge, socSerial, existingEntId = '0') {
         const signedChallenge = this.signChallenge(challenge);
         const url = `${this.baseUrl}/login`;
+        const flatCert = this.deviceCert.replace(/\\r/g, '').replace(/\\n/g, '').replace(/\r?\n|\r/g, '');
+
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: this.deviceCert,
+            device_certificate: flatCert,
             challenge: challenge,
             signed_challenge: signedChallenge,
             soc_serial: socSerial,
