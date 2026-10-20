@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
@@ -678,32 +677,92 @@ async function send(interaction, content) {
 // SLASH COMMANDS
 // ============================================
 
+// harvester field names vs slash command names - set_up.json and
+// ones_config.json both land here
+function pickField(src, ...names) {
+    if (!src || typeof src !== 'object') return '';
+    for (const n of names) {
+        const v = src[n];
+        if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+}
+
+// drag-and-drop path: read the uploaded set_up.json straight off the cdn
+async function readSetupAttachment(att) {
+    const url = att.url || att.proxyURL || att.proxy_url;
+    if (!url) throw new Error('attachment came with no url');
+    if (Number(att.size || 0) > 1024 * 1024) {
+        throw new Error(`${att.name || 'file'} is ${att.size}B - set_up.json is a few kb, that is something else`);
+    }
+    const resp = await axios.get(url, { responseType: 'text', timeout: 20000, validateStatus: () => true });
+    if (resp.status >= 400) throw new Error(`download failed: http ${resp.status}`);
+    let data = resp.data;
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { throw new Error(`not valid json: ${e.message}`); }
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('file is not a json object');
+    }
+    return data;
+}
+
 async function handleSetUps(interaction) {
     await interaction.deferReply();
 
-    const deviceCert = restorePem(interaction.options.getString('device_cert', true));
-    const privateKey = restorePem(interaction.options.getString('private_key', true));
-    const socSerial = String(interaction.options.getString('soc_serial', true) || '').trim();
-    const packageName = String(interaction.options.getString('package_name', true) || '').trim();
-    const appToken = String(interaction.options.getString('app_token') || '').trim();
+    const att = interaction.options.getAttachment('file');
+    const strCert = restorePem(interaction.options.getString('device_cert') || '');
+    const strKey = restorePem(interaction.options.getString('private_key') || '');
+    const strSerial = String(interaction.options.getString('soc_serial') || '').trim();
+    const strPkg = String(interaction.options.getString('package_name') || '').trim();
+    const strToken = String(interaction.options.getString('app_token') || '').trim();
+
+    // the uploaded file fills everything, anything typed overrides it
+    let file = {};
+    const fileLabel = att ? (att.name || 'set_up.json') : '';
+    if (att) {
+        try {
+            file = await readSetupAttachment(att);
+        } catch (e) {
+            await send(interaction, `❌ could not read \`${fileLabel}\`: ${e.message}`);
+            return;
+        }
+    }
+
+    const deviceCert = strCert || restorePem(pickField(file, 'device_cert', 'cert'));
+    const privateKey = strKey || restorePem(pickField(file, 'private_key', 'key', 'sig_key'));
+    const socSerial = strSerial || pickField(file, 'soc_serial', 'serial');
+    const packageName = strPkg || pickField(file, 'package_name', 'pkg');
+    const appToken = strToken || pickField(file, 'app_token', 'app_hw_token');
+
+    const missing = [];
+    if (!deviceCert) missing.push('device_cert');
+    if (!privateKey) missing.push('private_key');
+    if (!socSerial) missing.push('soc_serial');
+    if (!packageName) missing.push('package_name');
+    if (missing.length) {
+        await send(interaction,
+            `❌ missing \`${missing.join('`, `')}\`\n` +
+            `drop the file: \`/set_up file:\` ← \`set_up.json\` (ones_config.bat writes it),\n` +
+            `or type the options in by hand.`);
+        return;
+    }
+
+    const certHint = deviceCert.includes('BEGIN') ? '' : ' (looks like a path, not a pem - the harvest could not find that file)';
+    const keyHint = privateKey.includes('BEGIN') ? '' : ' (looks like a path, not a pem - the harvest could not find that file)';
 
     let x509 = null;
     try {
         x509 = new crypto.X509Certificate(deviceCert);
     } catch (e) {
-        await send(interaction, `❌ device_cert is not a PEM certificate: ${e.message}`);
+        await send(interaction, `❌ device_cert is not a PEM certificate: ${e.message}${certHint}`);
         return;
     }
 
     try {
         crypto.createPrivateKey(privateKey);
     } catch (e) {
-        await send(interaction, `❌ private_key is not a PEM private key: ${e.message}`);
-        return;
-    }
-
-    if (!socSerial || !packageName) {
-        await send(interaction, '❌ soc_serial and package_name must not be empty.');
+        await send(interaction, `❌ private_key is not a PEM private key: ${e.message}${keyHint}`);
         return;
     }
 
@@ -716,6 +775,11 @@ async function handleSetUps(interaction) {
         soc_serial: socSerial,
         package_name: packageName,
     };
+    // extras the harvester carries along - only the file can set these
+    for (const k of ['sig_cmd', 'pkg_sig', 'pkg_ver', 'existing_device_ent_id']) {
+        const v = pickField(file, k);
+        if (v) setup[k] = v;
+    }
 
     let saved;
     try {
@@ -731,6 +795,7 @@ async function handleSetUps(interaction) {
 
     const lines = [
         '✅ **set_up saved**',
+        `- 📎 from: \`${fileLabel || 'typed options'}\``,
         `- 📄 \`${saved}\``,
         `- 📐 cert: \`${certInfo(deviceCert)}\``,
         `- 🔑 key matches cert: **${match === true ? 'yes' : match === false ? (hasSigner ? 'NO - sig_cmd (headset) does the signing, local key is fallback only' : 'NO - step2 login will come back 2699003') : 'unknown'}**`,
@@ -815,22 +880,26 @@ client.once('clientReady', async (readyClient) => {
         new SlashCommandBuilder()
             .setName('set_up')
             .setDescription('Save the device setup for the attestation flow')
+            .addAttachmentOption(option =>
+                option.setName('file')
+                    .setDescription('set_up.json from ones_config.bat - fills every field below')
+                    .setRequired(false))
             .addStringOption(option =>
                 option.setName('device_cert')
                     .setDescription('Device Certificate PEM string')
-                    .setRequired(true))
+                    .setRequired(false))
             .addStringOption(option =>
                 option.setName('private_key')
                     .setDescription('Device Private Key PEM string')
-                    .setRequired(true))
+                    .setRequired(false))
             .addStringOption(option =>
                 option.setName('soc_serial')
                     .setDescription('SoC Serial Number')
-                    .setRequired(true))
+                    .setRequired(false))
             .addStringOption(option =>
                 option.setName('package_name')
                     .setDescription('Target package name')
-                    .setRequired(true))
+                    .setRequired(false))
             .addStringOption(option =>
                 option.setName('app_token')
                     .setDescription('Application Hardware Token (optional - keeps the saved one)')),
@@ -922,7 +991,7 @@ app.get('/status', (req, res) => {
           <p><strong>Uptime:</strong> ${Math.floor(process.uptime())} seconds</p>
         </div>
         <h3>🛡️ Features</h3>
-        <div class="feature">⚙️ <code>/set_up</code> device setup (cert, key, soc serial, package)</div>
+          <div class="feature">⚙️ <code>/set_up</code> drop <code>set_up.json</code>, or type cert / key / serial / package</div>
         <div class="feature">🎟️ <code>/gen-attestation-token</code> generate token + show verdict</div>
         <p style="margin-top: 30px; color: #64748b; font-size: 14px;">
           Powered by Render.com
