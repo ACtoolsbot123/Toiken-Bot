@@ -34,6 +34,18 @@ class HardwareAuthClient {
         this.deviceCert = String(deviceCert).replace(/\\n/g, '\n').trim();
         this.privateKeyPem = String(privateKeyPem).replace(/\\n/g, '\n').trim();
         this.signatureAlgorithm = 'SHA256';
+        this.certInfo = this.describeCert(this.deviceCert);
+    }
+
+    describeCert(pem) {
+        try {
+            const x = new crypto.X509Certificate(pem);
+            const fp = crypto.createHash('sha256').update(x.raw).digest('hex');
+            const subject = x.subject.replace(/\n/g, ', ');
+            return `subject=[${subject}] sha256=${fp.slice(0, 32)} raw=${x.raw.length}B`;
+        } catch (e) {
+            return `UNPARSEABLE: ${e.message}`;
+        }
     }
 
     getHeaders() {
@@ -262,12 +274,15 @@ client.on('interactionCreate', async (interaction) => {
             let detail = error.message;
             if (error.step) detail = `[${error.step}] ${detail}`;
             if (error.response) {
-                const body = typeof error.response.data === 'string'
-                    ? error.response.data
-                    : JSON.stringify(error.response.data);
-                detail += ` | ${error.response.status}: ${body.slice(0, 400)}`;
+                const d = error.response.data || {};
+                const e = d.error || {};
+                if (e.error_user_msg) detail += ` | ${e.error_user_msg}`;
+                else if (e.message) detail += ` | ${e.message}`;
+                if (e.error_subcode) detail += ` (subcode ${e.error_subcode})`;
+                else if (e.code) detail += ` (code ${e.code})`;
             }
-            await interaction.editReply(`❌ Attestation workflow failed: \`${detail}\``);
+            detail += `\n📐 cert: \`${authClient.certInfo}\``;
+            await interaction.editReply(`❌ Attestation workflow failed: ${detail}`);
         }
     }
 });
