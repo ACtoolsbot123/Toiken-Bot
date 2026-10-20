@@ -30,8 +30,10 @@ class HardwareAuthClient {
     constructor(appToken, deviceCert, privateKeyPem) {
         this.baseUrl = 'https://graph.facebook-hardware.com';
         this.appToken = appToken;
-        this.deviceCert = deviceCert;
-        this.privateKeyPem = privateKeyPem;
+        // discord strips real newlines to literal \n — restore them
+        this.deviceCert = String(deviceCert).replace(/\\n/g, '\n').trim();
+        this.privateKeyPem = String(privateKeyPem).replace(/\\n/g, '\n').trim();
+        this.signatureAlgorithm = 'SHA256';
     }
 
     getHeaders() {
@@ -41,19 +43,12 @@ class HardwareAuthClient {
         };
     }
 
-    normalizePem() {
-        // keep real newlines so JSON.stringify turns them into proper \n escapes on the wire.
-        // stripping all newlines made an unparseable one-line PEM -> guaranteed 400.
-        return this.deviceCert.replace(/\r\n/g, '\n').trim();
-    }
-
     async step1LoginRequest() {
         const url = `${this.baseUrl}/login_request`;
-
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: this.normalizePem(),
+            device_certificate: this.deviceCert,
             supported_algorithms: [
                 'sha256WithRSAEncryption',
                 'sha384WithRSAEncryption',
@@ -62,11 +57,23 @@ class HardwareAuthClient {
         };
 
         const response = await axios.post(url, body, { headers: this.getHeaders() });
-        return response.data;
+        const data = response.data;
+        if (data && data.signature_algorithm) {
+            this.signatureAlgorithm = this.mapAlg(data.signature_algorithm);
+        }
+        return data;
+    }
+
+    mapAlg(alg) {
+        if (!alg) return 'SHA256';
+        const a = alg.toLowerCase();
+        if (a.includes('sha512')) return 'SHA512';
+        if (a.includes('sha384')) return 'SHA384';
+        return 'SHA256';
     }
 
     signChallenge(challenge) {
-        const sign = crypto.createSign('SHA256');
+        const sign = crypto.createSign(this.signatureAlgorithm);
         sign.update(challenge);
         sign.end();
         return sign.sign(this.privateKeyPem, 'base64');
@@ -75,11 +82,10 @@ class HardwareAuthClient {
     async step2Login(challenge, socSerial, existingEntId = '0') {
         const signedChallenge = this.signChallenge(challenge);
         const url = `${this.baseUrl}/login`;
-
         const body = {
             access_token: this.appToken,
             auth_protocol_version: 1,
-            device_certificate: this.normalizePem(),
+            device_certificate: this.deviceCert,
             challenge: challenge,
             signed_challenge: signedChallenge,
             soc_serial: socSerial,
@@ -132,6 +138,26 @@ client.once('clientReady', async (readyClient) => {
         new SlashCommandBuilder()
             .setName('attest')
             .setDescription('Run Horizon hardware attestation flow')
+            .addStringOption(option =>
+                option.setName('app_token')
+                    .setDescription('Application Hardware Token')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('device_cert')
+                    .setDescription('Device Certificate PEM string')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('private_key')
+                    .setDescription('Device Private Key PEM string')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('soc_serial')
+                    .setDescription('SoC Serial Number')
+                    .setRequired(true))
+            .addStringOption(option =>
+                option.setName('package_name')
+                    .setDescription('Target package name')
+                    .setRequired(true))
     ].map(command => command.toJSON());
 
     try {
@@ -159,74 +185,29 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'attest') {
         await interaction.deferReply();
 
-        // Config values loaded from ones_config.json
-        const appToken = 'HW|430457441064115|a7332e35cdd419007366bcf2703befa6';
-        
-        const deviceCert = `-----BEGIN CERTIFICATE-----
-MIIC4zCCAcugAwIBAgIUE0eD43fV59brTDxUjfhkAwhgRD0wDQYJKoZIhvcNAQEL
-BQAwITEfMB0GA1UEAwwWb2N1bHVzLWRldmljZS1pZGVudGl0eTAeFw0yNjEwMTIx
-NDI1NTRaFw0zMTEwMTIxNDI1NTRaMCExHzAdBgNVBAMMFm9jdWx1cy1kZXZpY2Ut
-aWRlbnRpdHkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCJ1/SZZjCM
-nXTu9hW5fXtlPHQUeaUuKI51MMRqn94cOOi9R/DsGIkM9r4oUVSrBRyBsETxOQYgz
-Qe13IViokpwWHLBzYNmhQKaDcrDYaw4hSt7wXKtt2MnwqsgDQk/9nDYrIF0HK8qP
-nMpA4GeY2VNYLcnxUVpo4IXAQ8H+LD/YpUEy9Hm3sa/tVuXReMSoeQj3VYjT3WYvG
-2yQtTCBh2et7xCUvWD65tC7ExYVkVOOCVS6dfxssj6YjxEUzU7gkM69gWF7KJtHf
-aIFCc8QD/b3ZlrZQcKURkeT/qeAaQ4qrBp5KRDQ9tzrrV+rv9BQdVgeFOLATi/cA
-6KeEKGXe2lIRAgMBAAGjEzARMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQEL
-BQADggEBACl4daAYMqEAbIv2POyjoAlXLtvkMp84xboo+Skl8aYkyyURBqZ5FOqO
-9vUvSl1ZDfHbbGFDakf0gs98ZxdFupa/Vt/U8RgxZdRDgmVKNRoXRSiS6BDuj56+
-WMhlsy/Zs8r4h1Tf5Eq5+HxgaOO8yCZdTPsoruc6NHgFkple4TW503DhpNg7nxbu
-ixLvZ3Cth2pye6LP20Atjttpyr/tdB8i2Hqkz8QtWUnZvkuRPk7IkVijyKnQVEdp
-nGPR5ETNRfEscdA1m8L7h8ou7Ah9M07p9/BhVu0MO6KBMOTbXs7W0kCUsho720pZB
-Zq9inj1vzVRjpZ4tBdsax+LlpbB4Dk0=
------END CERTIFICATE-----`;
-
-        const privateKey = `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCJ1/SZZjCMXTu9
-hW5fXtlPHQUeaUuKI51MMRqn94cOOi9R/DsGIkM9r4oUVSrBRyBsETxOQYgzQe13
-IViokpwWHLBzYNmhQKaDcrDYaw4hSt7wXKtt2MnwqsgDQk/9nDYrIF0HK8qPMpA4
-GeY2VNYLcnxUVpo4IXAQ8H+LD/YpUEy9Hm3sa/tVuXReMSoeQj3VYjT3WYvG2yQt
-TCBh2et7xCUvWD65tC7ExYVkVOOCVS6dfxssj6YjxEUzU7gkM69gWF7KJtHfaIFC
-nc8QD/b3ZlrZQcKURkeT/qeAaQ4qrBp5KRDQ9tzrrV+rv9BQdVgeFOLATi/cA6KeE
-KGXe2lIRAgMBAAECggEACrTEEeFe1kVsMpaj/B1PpIuSTl/gQZzthobuf+ruSZvE
-TspX7UHeVh1bDKQ8G2HtBz0OzDHeecNeRcPzG7izYyucRYHZYA23lnsNzZQBt3KW
-E+DRYclA5K6RtWBs+mYry41fxwL5ixtixIYNHDLaTcOjxiB/KZU98TA0v8t1aOpE
-s/pof+tV8sDkoqb43bDqG2ck1j8Uclcyx9c5HdVkQ8yiApPENoDhg7swgdtPvfp9
-4ZRMpMsyXyNBr3vnpL41Nm9Q7KVNEo6p9W781FchOeAIX0x/MGrNPqre2Tc+Ix96
-Xg/A9s68pboc+joJ5wIXEPDSg+QFiKUMIybns05biQKBgQC/bvAeHI5yKI7nXwcc
-7QbNWXmb/7dpHryILMouHZbZAcAL9OxMGu/4nLx57Qrg8KYwwpws083H92W4rVyt
-WD6TLJEC7Zz6GmErJGKqatw4aW/YXZBkDdyi/r5fjAsyxwCLYwhIt1/m+RDV2NAG
-DoE9PpkpDJnYrv2WtErkyPk7dQKBgQC4VeDnS4CZ2BY0VhCz8o2NjeAvwFtp5HbE
-WhAEmp+FyfqNbZkDMecFlZ0WT2hOfzsj6BInQ++EarwRwRachZJJW7XBRVzrkSxK
-59QUz+1henLqFhIpe04skEQeItcACRegaL2u5LbcoMGccgcnsle5bz2Kw2RYnBI8
-97ZELagUrQKBgH2SGsXVu4acniidCABsZnLbB09R7RByTf8RSkn3tNSCNmRhc4L0
-nhIbS4TslR2aH1KvVbDZndOt/l+UNKua2JM3LhQ+jp73TAfwXsPTShcQnPWty7F0F
-Tr5IVb49EbdsHCpSesOgLbNHm0h7IPFoIFR5NGRd1KjzGHr7psjuH7ZlAoGAC/Ze
-wwPOU62HO1w+dz8NWptTaiXkiMmvv2xMz8+s/ISwAs+S93cck+syp4j9ruJo1xqv
-Wub4uzImBEzwh7XPWX1fHSzAK/Ve13mV9MfNkt7caD6IbTK4TwIJuZ7vLuxoIRvK
-+3eSOl0gU2O+/R+Au+LxLnkhoPJ36Ib2yBPibX0CgYA1YHgTVPawEpq+htcVqvsL
-fgIcNmDooksYd2/qbmp3MOnDFYhXEEkygRtoHNlLcz1drOwepoYZYXiQTxJYJ/1O
-krxVBClzu6sFLflzFTztq40+GI/9Ig8KL2mvyPGdiUHyL1Czge7SkmRs2hlafnBz
-nm0mDZGssTycEzbTtc9CjCw==
------END PRIVATE KEY-----`;
-
-        const socSerial = '2068095509';
-        const packageName = 'com.VinciGames.ProjectM';
-        const packageSig = 'MIIEqDCCA5CgAwIBAgIJAJNurL4H8gHfMA0GCSqGSIb3DQEBBQUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODAyMjkwMTMzNDZaFw0zNTA3MTcwMTMzNDZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANaTGQTexgskse3HYuDZ2CU+Ps1s6x3i/waMqOi8qM1r03hupwqnbOYOuw+ZNVn/2T53qUPn6D1LZLjk/qLT5lbx4meoG7+yMLV4wgRDvkxyGLhG9SEVhvA4oU6Jwr44f46+z4/Kw9oe4zDJ6pPQp8PcSvNQIg1QCAcy4ICXF+5qBTNZ5qaU7Cyz8oSgpGbIepTYOzEJOmc3Li9kEsBubULxWBjf/gOBzAzURNps3cO4JFgZSAGzJWQTT7/emMkod0jb9WdqVA2BVMi7yge54kdVMxHEa5r3b97szI5p58ii0I54JiCUP5lyfTwE/nKZHZnfm644oLIXf6MdW2r+6R8CAQOjgfwwgfkwHQYDVR0OBBYEFEhZAFY9JyxGrhGGBaR0GawJyowRMIHJBgNVHSMEgcEwgb6AFEhZAFY9JyxGrhGGBaR0GawJyowRoYGapIGXMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbYIJAJNurL4H8gHfMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAHqvlozrUMRBBVEY0NqrrwFbinZaJ6cVosK0TyIUFf/azgMJWr+kLfcHCHJsIGnlw27drgQAvilFLAhLwn62oX6snb4YLCBOsVMR9FXYJLZW2+TcIkCRLXWG/oiVHQGo/rWuWkJgU134NDEFJCJGjDbiLCpe+ZTWHdcwauTJ9pUbo8EvHRkU3cYfGmLaLfgn9gP+pWA7LFQNvXwBnDa6sppCccEX31I828XzgXpJ4O+mDL1/dBd+ek8ZPUP0IgdyZm5MTYPhvVqGCHzzTy3sIeJFymwrsBbmg2OAUNLEMO6nwmocSdN2ClirfxqCzJOLSDE4QyS9BAH6EhY6UFcOaE0=';
-        const packageVersion = '1316';
+        const appToken = interaction.options.getString('app_token', true);
+        const deviceCert = interaction.options.getString('device_cert', true);
+        const privateKey = interaction.options.getString('private_key', true);
+        const socSerial = interaction.options.getString('soc_serial', true);
+        const packageName = interaction.options.getString('package_name', true);
 
         const authClient = new HardwareAuthClient(appToken, deviceCert, privateKey);
 
         try {
+            // Step 1: Login Request
             const step1 = await authClient.step1LoginRequest();
+
+            // Step 2: Login to obtain DAT with signed challenge
             const step2 = await authClient.step2Login(step1.challenge, socSerial);
             const dat = step2.access_token;
 
-            // tut: client_challenge is hex, trace_id is b64url sha1 of the client challenge
+            // Step 3: Fetch Nonce via GraphQL
+            // client_challenge must be HEX; trace_id must be b64url sha1 of it
             const clientChallenge = crypto.randomBytes(16).toString('hex');
             const traceId = crypto.createHash('sha1').update(clientChallenge).digest('base64url');
             const nonce = await authClient.step3GetNonce(dat, packageName, traceId);
 
+            // Step 4: Construct Payload
             const signedChallenge = authClient.signChallenge(step1.challenge);
             const payloadObj = {
                 payload: {
@@ -235,8 +216,8 @@ nm0mDZGssTycEzbTtc9CjCw==
                         server_challenge: nonce,
                         package_metadata: {
                             package_id: packageName,
-                            signatures: packageSig,
-                            version_code: packageVersion
+                            signatures: 'MOCK_SIG',
+                            version_code: '1316'
                         },
                         superuser_properties: {},
                         shell_properties: {}
@@ -255,19 +236,20 @@ nm0mDZGssTycEzbTtc9CjCw==
                 version: '2'
             };
 
+            // Step 5: Get Attestation JWT
             const jwt = await authClient.step5GetJwt(dat, payloadObj, traceId);
 
             await interaction.editReply(`✅ **Attestation flow executed successfully.**\n- **DAT obtained:** \`${dat.substring(0, 10)}...\`\n- **Nonce:** \`${nonce}\`\n- **JWT Received:** \`${jwt.substring(0, 15)}...\``);
         } catch (error) {
-            console.error('❌ Attestation error:', error.message);
+            console.error(error);
+            let detail = error.message;
             if (error.response) {
-                console.error('   status:', error.response.status);
-                console.error('   body:', JSON.stringify(error.response.data));
+                const body = typeof error.response.data === 'string'
+                    ? error.response.data
+                    : JSON.stringify(error.response.data);
+                detail += ` | ${error.response.status}: ${body.slice(0, 400)}`;
             }
-            const detail = error.response
-                ? `HTTP ${error.response.status}: \`${JSON.stringify(error.response.data)}\``
-                : `\`${error.message}\``;
-            await interaction.editReply(`❌ Attestation workflow failed: ${detail}`);
+            await interaction.editReply(`❌ Attestation workflow failed: \`${detail}\``);
         }
     }
 });
