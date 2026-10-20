@@ -150,9 +150,11 @@ function runSignerOnce(cmd, data) {
             if (code !== 0) {
                 reject(new Error(`signer exit ${code}: ${trim(err.split('\n').filter(Boolean).pop() || '(no stderr)', 400)}`));
             } else {
-                const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-                if (!lines.length) reject(new Error('signer gave no signature'));
-                else resolve(lines[lines.length - 1]);
+                try {
+                    resolve(pickSignature(out));
+                } catch (e) {
+                    reject(e);
+                }
             }
         });
         p.stdin.on('error', () => {});
@@ -169,6 +171,21 @@ async function runSigner(cmd, data) {
         await new Promise((r) => setTimeout(r, 800));
         return runSignerOnce(cmd, data);
     }
+}
+
+// raw b64 on stdout normally; json {signature:...} tolerated like ones.py does
+function pickSignature(out) {
+    const trimmed = out.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+            const j = JSON.parse(trimmed);
+            const v = j.signature || j.signed_challenge || j.sig || j.b64;
+            if (v) return String(v).trim();
+        } catch (e) { /* not json after all */ }
+    }
+    const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) throw new Error('signer gave no signature');
+    return lines[lines.length - 1];
 }
 
 class HardwareAuthClient {
@@ -323,7 +340,10 @@ class HardwareAuthClient {
     }
 
     async signChallenge(challenge, format) {
-        const data = format === 'raw'
+        // the headset signs the challenge string exactly as login_request
+        // handed it over - with sig_cmd, always raw (ones.py does the same)
+        const mode = this.sigCmd && format !== 'raw' ? 'raw' : format;
+        const data = mode === 'raw'
             ? Buffer.from(String(challenge), 'utf8')
             : challengeBytesAuto(challenge);
         return this.sign(data);
